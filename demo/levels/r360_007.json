@@ -104,7 +104,7 @@
       "x": -1,
       "y": 0,
       "color": "violet",
-      "rotation": 170,
+      "rotation": 255,
       "radius": 49,
       "gap": 111
     },
@@ -258,7 +258,7 @@
       "x": -3,
       "y": -128,
       "color": "mint",
-      "rotation": 315,
+      "rotation": 45,
       "radius": 50,
       "gap": 135
     },
@@ -475,14 +475,6 @@
       }
     },
     {
-      "owner": "c1",
-      "target": "r8",
-      "anchor": {
-        "x": 35,
-        "y": -33.3
-      }
-    },
-    {
       "owner": "r2",
       "target": "r9",
       "anchor": {
@@ -552,14 +544,6 @@
       "anchor": {
         "x": -36.1,
         "y": -165.5
-      }
-    },
-    {
-      "owner": "r8",
-      "target": "r13",
-      "anchor": {
-        "x": -2.2,
-        "y": -78
       }
     },
     {

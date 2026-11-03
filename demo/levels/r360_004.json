@@ -17,7 +17,7 @@
       "x": 131,
       "y": -126,
       "color": "gold",
-      "rotation": 335,
+      "rotation": 330,
       "radius": 50,
       "gap": 104
     },
@@ -50,7 +50,7 @@
       "x": 0,
       "y": 132,
       "color": "teal",
-      "rotation": 275,
+      "rotation": 70,
       "radius": 53,
       "gap": 109
     },
@@ -193,14 +193,6 @@
       "anchor": {
         "x": -53,
         "y": 133.3
-      }
-    },
-    {
-      "owner": "r1",
-      "target": "r4",
-      "anchor": {
-        "x": 35.9,
-        "y": 171
       }
     },
     {
