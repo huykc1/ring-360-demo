@@ -264,6 +264,19 @@ function buildOnce(id: string, P: GeneratorParams, seed: number): Level {
             conns.push({ owner: o.id, target: t.id, anchor: { x: Math.round(anchor.x * 10) / 10, y: Math.round(anchor.y * 10) / 10 } });
         }
     }
+    // A ring held by several sleeves only comes free when its gap covers all of them at once, so the
+    // sleeves must fit inside the gap (with a margin); extra holders that do not fit are dropped.
+    for (const t of pieces) {
+        if (!t || t.type !== 'ring') continue;
+        const mine = conns.filter((c) => c.target === t.id);
+        if (mine.length < 2) continue;
+        const keep = [mine[0]];
+        for (const c of mine.slice(1)) {
+            const angles = [...keep, c].map((x) => angleOf(t, x.anchor!));
+            if (coverArc(angles) <= (t.gap ?? 110) - 24) keep.push(c);
+        }
+        for (const c of mine) if (!keep.includes(c)) conns.splice(conns.indexOf(c), 1);
+    }
     // Drop pieces that ended up with no hook at all.
     const used = new Set(conns.flatMap((c) => [c.owner, c.target]));
     for (let k = 0; k < n; k++) if (pieces[k] && !used.has(pieces[k]!.id)) pieces[k] = null;
@@ -290,4 +303,12 @@ function buildOnce(id: string, P: GeneratorParams, seed: number): Level {
     level.pieces = pieces.filter((p): p is Piece => !!p);
     level.connections = conns;
     return level;
+}
+
+/** Smallest arc (degrees) that contains every angle. */
+function coverArc(angles: number[]): number {
+    const a = angles.map((x) => ((x % 360) + 360) % 360).sort((p, q) => p - q);
+    let largestGap = 0;
+    for (let i = 0; i < a.length; i++) largestGap = Math.max(largestGap, (a[(i + 1) % a.length] - a[i] + 360) % 360 || (a.length === 1 ? 360 : 0));
+    return 360 - largestGap;
 }

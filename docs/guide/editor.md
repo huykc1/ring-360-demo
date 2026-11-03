@@ -47,12 +47,14 @@ Kept close to the reference file. Fields: `schema` (`ring360-level`), `schemaVer
 ## 3. Rules the editor and game share
 
 1. A ring can rotate only while it **holds nothing**.
-2. A piece **breaks in place** (it does not fly away) once no hook holds it.
-3. Bars, L and U pieces slide along the held leg; a leg pulled out of its sleeve is released.
-4. A closed ring is removed only by a bomb.
-5. A bomb explodes when it touches another ring or another ring's hook. It breaks the piece it is attached to and every piece within its blast radius, closed rings included. Pieces held by a broken piece are released.
-6. Blast radius: tunable, value `_TBD_` (tested in the build).
-7. Win: every piece is broken. There is no lose state; a player who gets stuck presses Restart.
+2. A sleeve holds a piece **while it sits on the piece's wire right now**: a ring is out of a sleeve while its gap is at the sleeve, and is caught again if it keeps turning and the wire comes back into the sleeve. A bar is out once its leg has slid past the sleeve, and caught again if it slides back.
+3. Bars, L and U pieces slide along the held leg.
+4. A piece **breaks in place** (it does not fly away) when the player **lets go** while nothing holds it and it holds nothing. While dragging, the piece glows orange; it glows teal while it is free, meaning letting go now breaks it.
+5. A ring held by several sleeves breaks only when its gap covers all of them at once. The generator only puts several sleeves on a ring when they fit inside its gap.
+6. A closed ring is removed only by a bomb (or a booster).
+7. A bomb explodes when it touches another ring or another ring's hook. It breaks the piece it is attached to and every piece within its blast radius, closed rings included. Pieces held by a broken piece are released.
+8. Blast radius: tunable, value `_TBD_` (tested in the build).
+9. Win: every piece is broken. There is no lose state; a player who gets stuck presses Restart.
 
 ### Boosters (prototype values)
 

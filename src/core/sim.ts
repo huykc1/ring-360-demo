@@ -1,5 +1,5 @@
-// Simplified solver: breadth-first search over "macro moves" (turn a ring or slide a bar until something
-// is released, it bumps into a piece, or a bomb goes off).
+// Simplified solver: breadth-first search over "macro moves": turn a ring or slide a bar until it is free,
+// it bumps into a piece, or a bomb goes off, then let go so free pieces break.
 import { Puzzle, type State } from './rules';
 import type { Level } from './types';
 
@@ -44,7 +44,10 @@ export function legalMoves(pz: Puzzle, s: State): Move[] {
     return out;
 }
 
-/** Applies a macro move to a copy of `s`; returns null when nothing changes. */
+/**
+ * Applies a macro move to a copy of `s` and lets go (free pieces break); returns null when nothing changes.
+ * A turn or slide stops as soon as the piece is free, or when it bumps into something.
+ */
 export function applyMove(pz: Puzzle, s: State, mv: Move): State | null {
     const n = pz.clone(s);
     let r;
@@ -52,8 +55,9 @@ export function applyMove(pz: Puzzle, s: State, mv: Move): State | null {
     else if (mv.kind === 'slide') r = pz.slide(n, mv.piece, 500 * mv.sign, true);
     else r = pz.flip(n, mv.piece);
     if (r.moved === 0) return null;
-    // A full turn with nothing released changes nothing that matters.
-    if (mv.kind === 'rotate' && !r.blocked && !r.released.length && !r.exploded) return null;
+    // A full turn that frees nothing changes nothing that matters.
+    if (mv.kind === 'rotate' && !r.blocked && !r.freed && !r.exploded) return null;
+    pz.settle(n);
     return n;
 }
 

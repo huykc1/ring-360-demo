@@ -1,100 +1,119 @@
 import * as Phaser from 'phaser';
+import { CREAM, FONT, INK, softCard, TEAL } from './ui';
 
 export type BoosterKind = 'hammer' | 'rocket';
 
-/** Square booster card with a green "+" badge, drawn in code until art assets replace it. */
+/** Soft cream booster card with a teal uses-left badge and a label, drawn in code until art assets replace it. */
 export class BoosterButton extends Phaser.GameObjects.Container {
+    private bg: Phaser.GameObjects.Graphics;
+    private icon: Phaser.GameObjects.Graphics;
     private badge: Phaser.GameObjects.Graphics;
     private ring: Phaser.GameObjects.Graphics;
     private countText: Phaser.GameObjects.Text;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, kind: BoosterKind, onTap: () => void, readonly size = 136) {
+    constructor(scene: Phaser.Scene, x: number, y: number, kind: BoosterKind, onTap: () => void, readonly size = 140) {
         super(scene, x, y);
         const s = size;
-        const card = scene.add.graphics();
-        card.fillStyle(0x000000, 0.14).fillRoundedRect(-s / 2, -s / 2 + 8, s, s, 30);
-        card.fillStyle(0xeaf3ff, 1).fillRoundedRect(-s / 2, -s / 2, s, s, 30);
-        card.fillStyle(0x2f8ff0, 1).fillRoundedRect(-s / 2 + 9, -s / 2 + 9, s - 18, s - 18, 23);
-        card.fillStyle(0x5fb4ff, 1).fillRoundedRect(-s / 2 + 9, -s / 2 + 9, s - 18, (s - 18) * 0.45, { tl: 23, tr: 23, bl: 6, br: 6 });
-        const icon = scene.add.graphics();
-        if (kind === 'hammer') drawHammer(icon, s * 0.34);
-        else drawRocket(icon, s * 0.34);
         this.ring = scene.add.graphics();
+        this.bg = scene.add.graphics();
+        this.icon = scene.add.graphics();
+        if (kind === 'hammer') drawHammer(this.icon, s * 0.3);
+        else drawRocket(this.icon, s * 0.3);
         this.badge = scene.add.graphics();
         this.countText = scene.add
-            .text(s / 2 - 6, s / 2 - 6, '', { fontFamily: 'Arial, Helvetica, sans-serif', fontSize: '30px', color: '#ffffff', fontStyle: 'bold' })
+            .text(s / 2 - 12, -s / 2 + 12, '', { fontFamily: FONT, fontSize: '28px', color: '#ffffff', fontStyle: 'bold' })
             .setOrigin(0.5);
-        this.add([this.ring, card, icon, this.badge, this.countText]);
+        const label = scene.add
+            .text(0, s / 2 + 34, kind === 'hammer' ? 'Hammer' : 'Rocket', { fontFamily: FONT, fontSize: '30px', color: INK, fontStyle: 'bold' })
+            .setOrigin(0.5);
+        this.add([this.ring, this.bg, this.icon, this.badge, this.countText, label]);
+        this.drawCard(false);
         this.setCount(0);
         this.setSize(s, s);
         this.setInteractive({ useHandCursor: true });
-        this.on('pointerdown', () => this.setScale(0.93));
-        this.on('pointerout', () => this.setScale(1));
+        this.on('pointerdown', () => this.drawCard(true));
+        this.on('pointerout', () => this.drawCard(false));
         this.on('pointerup', () => {
-            this.setScale(1);
+            this.drawCard(false);
             onTap();
         });
         scene.add.existing(this);
     }
 
-    /** Uses left: a number in the badge, or "+" when none are left. */
+    /** Uses left: a number in the teal badge, or "+" when none are left. */
     setCount(n: number) {
-        const bx = this.size / 2 - 6;
-        const by = this.size / 2 - 6;
+        const bx = this.size / 2 - 12;
+        const by = -this.size / 2 + 12;
         const b = this.badge.clear();
-        b.fillStyle(0xffffff, 1).fillCircle(bx, by, 28);
-        b.fillStyle(0x2fb24a, 1).fillCircle(bx, by, 23);
-        if (n <= 0) b.fillStyle(0xffffff, 1).fillRoundedRect(bx - 13, by - 4, 26, 8, 3).fillRoundedRect(bx - 4, by - 13, 8, 26, 3);
+        b.fillStyle(0xffffff, 1).fillCircle(bx, by, 27);
+        b.fillStyle(TEAL, 1).fillCircle(bx, by, 23);
+        if (n <= 0) b.fillStyle(0xffffff, 1).fillRoundedRect(bx - 11, by - 3, 22, 6, 3).fillRoundedRect(bx - 3, by - 11, 6, 22, 3);
         this.countText.setText(n > 0 ? String(n) : '');
     }
 
-    /** Glowing outline while the booster waits for a target. */
+    /** Teal outline while the booster waits for a target. */
     setArmed(on: boolean) {
         const s = this.size;
         this.ring.clear();
-        if (on) this.ring.lineStyle(8, 0xffc23d, 1).strokeRoundedRect(-s / 2 - 8, -s / 2 - 8, s + 16, s + 16, 36);
+        if (on) this.ring.lineStyle(7, TEAL, 1).strokeRoundedRect(-s / 2 - 8, -s / 2 - 8, s + 16, s + 16, 44);
     }
+
+    private drawCard(pressed: boolean) {
+        const s = this.size;
+        this.bg.clear();
+        softCard(this.bg, -s / 2, -s / 2, s, s, 38, CREAM, pressed);
+        this.icon.y = pressed ? 3 : 0;
+    }
+}
+
+type Pt = [number, number];
+
+function shape(g: Phaser.GameObjects.Graphics, rot: number) {
+    const tr = ([x, y]: Pt) => new Phaser.Math.Vector2(x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot));
+    return {
+        poly(pts: Pt[], color: number) {
+            g.fillStyle(color, 1).fillPoints(pts.map(tr), true);
+        },
+        rect(x: number, y: number, w: number, h: number, color: number) {
+            this.poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], color);
+        },
+        circle(x: number, y: number, r: number, color: number) {
+            const p = tr([x, y]);
+            g.fillStyle(color, 1).fillCircle(p.x, p.y, r);
+        }
+    };
 }
 
 function drawHammer(g: Phaser.GameObjects.Graphics, r: number) {
-    // Tilted mallet: gold handle, red head with gold rims and a star.
-    const rot = (x: number, y: number, a = -0.6) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)] as const;
-    const poly = (pts: [number, number][], color: number) => {
-        g.fillStyle(color, 1).fillPoints(pts.map(([x, y]) => new Phaser.Math.Vector2(...rot(x, y))), true);
-    };
-    const rect = (x: number, y: number, w: number, h: number, color: number) =>
-        poly([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], color);
-    rect(-r * 0.13, -r * 0.05, r * 0.26, r * 1.25, 0xc98a1a);
-    rect(-r * 0.13, r * 0.95, r * 0.26, r * 0.3, 0xe8b23a);
-    rect(-r * 0.7, -r * 0.75, r * 1.4, r * 0.95, 0xd8322b);
-    rect(-r * 0.7, -r * 0.75, r * 1.4, r * 0.28, 0xf0584e);
-    rect(-r * 0.82, -r * 0.82, r * 0.22, r * 1.09, 0xf2c032);
-    rect(r * 0.6, -r * 0.82, r * 0.22, r * 1.09, 0xf2c032);
-    const star: [number, number][] = [];
+    // Red mallet with a gold star on a yellow handle, tilted like the reference.
+    const s = shape(g, -0.65);
+    s.rect(-r * 0.13, -r * 0.1, r * 0.26, r * 1.3, 0xf0b62c);
+    s.rect(-r * 0.13, -r * 0.1, r * 0.09, r * 1.3, 0xf7cd57);
+    s.circle(0, r * 1.2, r * 0.13, 0xf0b62c);
+    s.rect(-r * 0.75, -r * 0.8, r * 1.5, r * 0.85, 0xdc4a36);
+    s.rect(-r * 0.75, -r * 0.8, r * 1.5, r * 0.25, 0xef6a52);
+    s.rect(-r * 0.85, -r * 0.85, r * 0.2, r * 0.95, 0xc23a2a);
+    s.rect(r * 0.65, -r * 0.85, r * 0.2, r * 0.95, 0xc23a2a);
+    const star: Pt[] = [];
     for (let i = 0; i < 10; i++) {
         const a = -Math.PI / 2 + (i * Math.PI) / 5;
-        const rr = i % 2 ? r * 0.12 : r * 0.28;
-        star.push([Math.cos(a) * rr, -r * 0.28 + Math.sin(a) * rr]);
+        const rr = i % 2 ? r * 0.1 : r * 0.24;
+        star.push([Math.cos(a) * rr, -r * 0.38 + Math.sin(a) * rr]);
     }
-    poly(star, 0xffd84a);
+    s.poly(star, 0xffd447);
 }
 
 function drawRocket(g: Phaser.GameObjects.Graphics, r: number) {
-    const a = 0.55;
-    const rot = (x: number, y: number) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)] as const;
-    const poly = (pts: [number, number][], color: number) => {
-        g.fillStyle(color, 1).fillPoints(pts.map(([x, y]) => new Phaser.Math.Vector2(...rot(x, y))), true);
-    };
+    // White rocket with a red nose and fins, a yellow window and a small flame.
+    const s = shape(g, 0.6);
     const w = r * 0.42;
-    // Fins, body stripes, nose cone, fuse.
-    poly([[-w, r * 0.45], [-w * 1.8, r * 0.95], [-w, r * 0.85]], 0xd8322b);
-    poly([[w, r * 0.45], [w * 1.8, r * 0.95], [w, r * 0.85]], 0xd8322b);
-    for (let i = 0; i < 5; i++) {
-        const y0 = -r * 0.45 + i * r * 0.27;
-        poly([[-w, y0], [w, y0], [w, y0 + r * 0.27], [-w, y0 + r * 0.27]], i % 2 ? 0xffffff : 0xe03a32);
-    }
-    poly([[-w * 1.05, -r * 0.45], [w * 1.05, -r * 0.45], [0, -r * 1.15]], 0xd8322b);
-    poly([[-w * 1.1, -r * 0.5], [w * 1.1, -r * 0.5], [w * 1.1, -r * 0.4], [-w * 1.1, -r * 0.4]], 0xf2c032);
-    poly([[-w * 1.1, r * 0.88], [w * 1.1, r * 0.88], [w * 1.1, r * 0.98], [-w * 1.1, r * 0.98]], 0xf2c032);
-    poly([[-r * 0.06, r * 0.98], [r * 0.06, r * 0.98], [r * 0.14, r * 1.3], [r * 0.02, r * 1.3]], 0xe08a3a);
+    s.poly([[-r * 0.14, r * 0.75], [r * 0.14, r * 0.75], [0, r * 1.25]], 0xffb340);
+    s.poly([[-r * 0.07, r * 0.75], [r * 0.07, r * 0.75], [0, r * 1.05]], 0xffe27a);
+    s.poly([[-w, r * 0.2], [-w * 1.9, r * 0.75], [-w * 0.9, r * 0.7]], 0xd8452f);
+    s.poly([[w, r * 0.2], [w * 1.9, r * 0.75], [w * 0.9, r * 0.7]], 0xd8452f);
+    s.poly([[-w, -r * 0.45], [w, -r * 0.45], [w * 0.9, r * 0.72], [-w * 0.9, r * 0.72]], 0xfdf8f0);
+    s.poly([[-w * 0.35, -r * 0.45], [-w * 0.15, -r * 0.45], [-w * 0.2, r * 0.72], [-w * 0.4, r * 0.72]], 0xeae2d4);
+    s.poly([[-w, -r * 0.45], [w, -r * 0.45], [w * 0.6, -r * 0.85], [0, -r * 1.1], [-w * 0.6, -r * 0.85]], 0xd8452f);
+    s.circle(0, -r * 0.05, r * 0.24, 0xf2c032);
+    s.circle(0, -r * 0.05, r * 0.15, 0x6b4a2b);
 }

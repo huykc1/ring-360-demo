@@ -3,7 +3,7 @@ import { loadLevel, shared } from '../game/shared';
 import { angleOf, wrap } from '../core/geom';
 import { Puzzle, type MoveResult, type State } from '../core/rules';
 import type { Level, Vec2 } from '../core/types';
-import { button, FONT, INK, MUTED } from './ui';
+import { button, chevronLeft, FONT, iconButton, INK, MUTED, restartArrow, softCard, TEAL } from './ui';
 import { RotatePad } from './RotatePad';
 import { BoosterButton } from './BoosterButton';
 
@@ -37,6 +37,8 @@ export class Play extends Phaser.Scene {
     /** The hammer is waiting for the player to tap a piece. */
     private armed = false;
     private lastSpark = 0;
+    private progress!: Phaser.GameObjects.Graphics;
+    private progressBox = { x: 0, y: 0, w: 0, h: 0 };
 
     constructor() {
         super('Play');
@@ -60,17 +62,32 @@ export class Play extends Phaser.Scene {
         this.state = this.puzzle.initial();
         view.setLevel(this.level, this.puzzle, this.state);
         view.resetView();
+        // Centre the cube in the space between the top bar and the bottom panel.
+        view.setOffsetY(0.055);
 
-        button(this, 110, 90, 170, 84, '← Back', () => this.back(), { size: 30 });
-        button(this, width - 70, 90, 96, 84, '↻', () => this.restart(), { size: 44 });
-        this.add.text(width / 2, 70, this.level.name, { fontFamily: FONT, fontSize: '34px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
-        this.piecesText = this.add.text(width / 2, 112, '', { fontFamily: FONT, fontSize: '26px', color: MUTED }).setOrigin(0.5);
-        this.add
-            .text(width / 2, height - 52, 'Drag here or on the background to turn the cube · drag a ring to twist it', { fontFamily: FONT, fontSize: '22px', color: MUTED })
-            .setOrigin(0.5);
-        this.pad = new RotatePad(this, width / 2, height - 190);
-        this.hammerBtn = new BoosterButton(this, width / 2 - 230, height - 190, 'hammer', () => this.toggleHammer());
-        this.rocketBtn = new BoosterButton(this, width / 2 + 230, height - 190, 'rocket', () => this.fireRocket());
+        // Top bar: back, title, restart; a "pieces left" pill and a progress bar under the title.
+        iconButton(this, 90, 92, 96, chevronLeft, () => this.back());
+        iconButton(this, width - 90, 92, 96, restartArrow, () => this.restart());
+        this.add.text(width / 2, 88, this.level.name, { fontFamily: FONT, fontSize: '60px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        const pill = this.add.graphics();
+        softCard(pill, width / 2 - 215, 132, 430, 72, 36);
+        pill.lineStyle(7, TEAL, 1).strokeCircle(width / 2 - 160, 167, 15);
+        this.piecesText = this.add.text(width / 2 + 20, 168, '', { fontFamily: FONT, fontSize: '34px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        this.progress = this.add.graphics();
+        this.progressBox = { x: width / 2 - 225, y: 232, w: 450, h: 20 };
+        if (this.level.instruction) {
+            this.add.text(width / 2, 272, this.level.instruction, { fontFamily: FONT, fontSize: '26px', color: INK, align: 'center', wordWrap: { width: width - 120 } }).setOrigin(0.5, 0);
+        }
+
+        // Bottom panel: hammer, rotate pad, rocket.
+        const panelTop = height - 440;
+        const panel = this.add.graphics();
+        softCard(panel, 52, panelTop, width - 104, 290, 64);
+        const row = panelTop + 128;
+        this.pad = new RotatePad(this, width / 2, row);
+        this.add.text(width / 2, row + 128, 'Drag to rotate', { fontFamily: FONT, fontSize: '30px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        this.hammerBtn = new BoosterButton(this, width / 2 - 228, row - 12, 'hammer', () => this.toggleHammer());
+        this.rocketBtn = new BoosterButton(this, width / 2 + 228, row - 12, 'rocket', () => this.fireRocket());
         this.hammerBtn.setCount(this.hammers);
         this.rocketBtn.setCount(this.rockets);
         this.pad.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -78,10 +95,8 @@ export class Play extends Phaser.Scene {
             this.drag = { kind: 'orbit', x: p.x, y: p.y };
             this.pad.press(true);
         });
-        if (this.level.instruction) {
-            this.add.text(width / 2, 170, this.level.instruction, { fontFamily: FONT, fontSize: '26px', color: INK, wordWrap: { width: width - 120 } }).setOrigin(0.5, 0);
-        }
-        this.toast = this.add.text(width / 2, height - 330, '', { fontFamily: FONT, fontSize: '28px', color: '#9A520C' }).setOrigin(0.5).setAlpha(0);
+        this.add.text(width / 2, height - 82, 'Drag a ring to twist', { fontFamily: FONT, fontSize: '30px', color: MUTED }).setOrigin(0.5);
+        this.toast = this.add.text(width / 2, panelTop - 40, '', { fontFamily: FONT, fontSize: '30px', color: '#9A520C', fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0);
         this.updateHud();
 
         this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: unknown[]) => this.onDown(p, over));
@@ -125,6 +140,7 @@ export class Play extends Phaser.Scene {
         if (m.kind === 'rotate' && at) this.drag = { kind: 'rotate', id, last: angleOf(piece, at), moved: 0 };
         else if (m.kind === 'slide' && at) this.drag = { kind: 'slide', id, dir: m.dir, last: at, moved: 0, canFlip: m.canFlip };
         else if (m.kind === 'flip') this.drag = { kind: 'tap', id, x: p.x, y: p.y };
+        if (this.drag && 'id' in this.drag) view.setSelected(id);
         else {
             this.drag = { kind: 'orbit', x: p.x, y: p.y };
             if (m.kind === 'none') {
@@ -168,7 +184,7 @@ export class Play extends Phaser.Scene {
             const amount = (at.x - d.last.x) * d.dir.x + (at.y - d.last.y) * d.dir.y;
             d.last = at;
             if (Math.abs(amount) < 0.3) return;
-            this.apply(this.puzzle.slide(this.state, d.id, amount), d.id);
+            this.apply(this.puzzle.slide(this.state, d.id, amount, false, d.dir), d.id);
             d.moved += Math.abs(amount);
         }
     }
@@ -179,8 +195,23 @@ export class Play extends Phaser.Scene {
         this.pinch = undefined;
         if (d?.kind === 'orbit') this.pad.press(false);
         if (!d) return;
+        const view = shared.view!;
         const tapped = (d.kind === 'tap' && Math.hypot(p.x - d.x, p.y - d.y) < 20) || (d.kind === 'slide' && d.canFlip && d.moved < 3);
         if (tapped && 'id' in d) this.apply(this.puzzle.flip(this.state, d.id), d.id);
+        if ('id' in d) {
+            // The finger lifted: whatever is free right now breaks. A piece turned back into its sleeve stays.
+            const broken = this.puzzle.settle(this.state);
+            view.setSelected(null);
+            if (broken.length) {
+                view.breakPieces(broken);
+                this.afterBreak();
+            }
+        }
+    }
+
+    private afterBreak() {
+        this.updateHud();
+        if (this.puzzle.isWon(this.state)) this.time.delayedCall(450, () => this.win());
     }
 
     private apply(r: MoveResult, id: string) {
@@ -192,14 +223,18 @@ export class Play extends Phaser.Scene {
             view.flash(r.hit.other, 3, 380);
             view.flash(id, 2.5, 240);
         }
-        if (r.moved > 0) view.updatePiece(id);
+        if (r.moved > 0) {
+            // Teal glow while the dragged piece is free (letting go now breaks it), orange while still held.
+            view.setSelectFree(this.puzzle.isFree(this.state, id));
+            view.updatePiece(id);
+        }
         if (r.exploded) this.boom(id);
         if (r.broken.length) view.breakPieces(r.broken);
         if (r.exploded) this.time.delayedCall(300, () => view.rebuildAll());
         if (r.broken.length || r.exploded) {
+            if (this.drag && 'id' in this.drag) view.setSelected(null);
             this.drag = null;
-            this.updateHud();
-            if (this.puzzle.isWon(this.state)) this.time.delayedCall(450, () => this.win());
+            this.afterBreak();
         }
     }
 
@@ -251,7 +286,14 @@ export class Play extends Phaser.Scene {
     }
 
     private updateHud() {
-        this.piecesText.setText(`${this.puzzle.remaining(this.state)} / ${this.level.pieces.length} pieces left`);
+        const left = this.puzzle.remaining(this.state);
+        const total = this.level.pieces.length;
+        this.piecesText.setText(`${left} / ${total} pieces left`);
+        const b = this.progressBox;
+        const done = total ? (total - left) / total : 0;
+        const g = this.progress.clear();
+        g.fillStyle(0xeadfce, 1).fillRoundedRect(b.x, b.y, b.w, b.h, b.h / 2);
+        if (done > 0) g.fillStyle(TEAL, 1).fillRoundedRect(b.x, b.y, Math.max(b.h, b.w * done), b.h, b.h / 2);
     }
 
     private say(msg: string) {

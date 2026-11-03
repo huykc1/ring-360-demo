@@ -52,12 +52,16 @@ export class CubeView {
     private raycaster = new THREE.Raycaster();
     /** Zoom factor on top of the distance that fits the whole cube. */
     private zoomK = 1;
+    /** Shifts the cube up (positive) as a fraction of the view height, to centre it between HUD bars. */
+    private offsetY = 0;
     private frame = 0;
     private resizeObs: ResizeObserver;
     level?: Level;
     puzzle?: Puzzle;
     state?: State;
     selected: string | null = null;
+    /** The selected piece is free to break: glow teal instead of orange. */
+    private selectFree = false;
     /** Called once per frame before rendering (the game uses it for drag inertia). */
     onFrame?: () => void;
 
@@ -113,12 +117,22 @@ export class CubeView {
 
     private placeCamera() {
         // Distance at which the cube's bounding sphere fits the narrower field of view.
-        const r = (this.level?.cubeSize ?? 400) * 0.82;
+        const r = (this.level?.cubeSize ?? 400) * 0.92;
         const half = (this.camera.fov * Math.PI) / 360;
         const halfH = Math.atan(Math.tan(half) * this.camera.aspect);
         const fit = r / Math.sin(Math.min(half, halfH));
         this.camera.position.set(0, 0, fit * this.zoomK);
         this.camera.lookAt(0, 0, 0);
+        const w = Math.max(1, this.container.clientWidth);
+        const h = Math.max(1, this.container.clientHeight);
+        if (this.offsetY) this.camera.setViewOffset(w, h, 0, this.offsetY * h, w, h);
+        else this.camera.clearViewOffset();
+    }
+
+    /** Moves the cube up by a fraction of the view height (0 = centred). */
+    setOffsetY(f: number) {
+        this.offsetY = f;
+        this.placeCamera();
     }
 
     orbit(dx: number, dy: number) {
@@ -146,8 +160,13 @@ export class CubeView {
         this.rebuildAll();
     }
 
+    setSelectFree(free: boolean) {
+        this.selectFree = free;
+    }
+
     setSelected(id: string | null) {
         this.selected = id;
+        this.selectFree = false;
         this.rebuildAll();
     }
 
@@ -410,8 +429,8 @@ export class CubeView {
                     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
                     if (!m || !('emissive' in m)) return;
                     if (done) {
-                        m.emissive.set(sel ? 0xff8a1f : 0x000000);
-                        m.emissiveIntensity = sel ? 0.45 : 0;
+                        m.emissive.set(sel ? (this.selectFree ? 0x2fe0c8 : 0xff8a1f) : 0x000000);
+                        m.emissiveIntensity = sel ? (this.selectFree ? 0.55 : 0.45) : 0;
                     } else {
                         m.emissive.set(0xff2a1a);
                         m.emissiveIntensity = 0.85 * (1 - k);
@@ -448,7 +467,7 @@ export class CubeView {
         const g = new THREE.Group();
         g.userData.pieceId = id;
         const base = new THREE.Color(COLORS[p.color] ?? p.color ?? '#999999');
-        const mat = plastic(base, id === this.selected);
+        const mat = plastic(base, id === this.selected, this.selectFree);
         const lift = TUBE_RADIUS + 0.6;
         const ps = s.p[id];
 
@@ -489,13 +508,13 @@ export class CubeView {
 
 // ---------- mesh helpers ----------
 
-function plastic(color: THREE.Color, highlight: boolean) {
+function plastic(color: THREE.Color, highlight: boolean, free = false) {
     return new THREE.MeshStandardMaterial({
         color,
         roughness: 0.32,
         metalness: 0.05,
-        emissive: highlight ? new THREE.Color(0xff8a1f) : new THREE.Color(0x000000),
-        emissiveIntensity: highlight ? 0.45 : 0
+        emissive: highlight ? new THREE.Color(free ? 0x2fe0c8 : 0xff8a1f) : new THREE.Color(0x000000),
+        emissiveIntensity: highlight ? (free ? 0.55 : 0.45) : 0
     });
 }
 

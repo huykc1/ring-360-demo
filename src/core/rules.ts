@@ -23,13 +23,16 @@ export interface PieceState {
     dy: number;
     flipped: boolean;
     broken: boolean;
-    /** Screws: still threaded through their metal joint. */
+    /** Screws: still threaded through their metal joint (depends on where the screw is). */
     joint: boolean;
 }
 
 export interface State {
     p: Record<string, PieceState>;
+    /** Whether each hook's sleeve is on its target's wire right now. Changes as pieces move. */
     hooks: boolean[];
+    /** Hooks gone for good because their owner or target was destroyed. */
+    cut: boolean[];
     bombUsed: Record<string, boolean>;
     fixedUsed: boolean[];
 }
@@ -37,7 +40,9 @@ export interface State {
 export interface MoveResult {
     moved: number;
     blocked: boolean;
-    released: number[];
+    /** The moved piece ends up held by nothing and holding nothing: letting go now breaks it. */
+    freed: boolean;
+    /** Pieces destroyed straight away (bombs, boosters). Ordinary breaks wait for `settle`. */
     broken: string[];
     exploded: boolean;
     /** When a move is blocked: where the moving piece touched another piece, and which one. */
@@ -106,14 +111,18 @@ export class Puzzle {
     }
 
     initial(): State {
-        const s: State = { p: {}, hooks: this.hooks.map(() => true), bombUsed: {}, fixedUsed: this.level.fixedBombs.map(() => false) };
+        const s: State = {
+            p: {},
+            hooks: this.hooks.map(() => true),
+            cut: this.hooks.map(() => false),
+            bombUsed: {},
+            fixedUsed: this.level.fixedBombs.map(() => false)
+        };
         for (const p of this.level.pieces) {
             s.p[p.id] = { rot: p.rotation, dx: 0, dy: 0, flipped: false, broken: false, joint: p.type === 'rolling-elbow' };
         }
-        // Hooks whose sleeve already sits in a ring's gap hold nothing.
-        this.hooks.forEach((h, i) => {
-            if (h.phi !== undefined && this.inGap(s, h.c.target, h.phi)) s.hooks[i] = false;
-        });
+        // A sleeve that already sits in a ring's gap holds nothing.
+        for (const p of this.level.pieces) this.engage(s, p.id);
         this.cascade(s, []);
         return s;
     }
@@ -121,7 +130,7 @@ export class Puzzle {
     clone(s: State): State {
         const p: Record<string, PieceState> = {};
         for (const k in s.p) p[k] = { ...s.p[k] };
-        return { p, hooks: [...s.hooks], bombUsed: { ...s.bombUsed }, fixedUsed: [...s.fixedUsed] };
+        return { p, hooks: [...s.hooks], cut: [...s.cut], bombUsed: { ...s.bombUsed }, fixedUsed: [...s.fixedUsed] };
     }
 
     remaining(s: State) {
@@ -142,6 +151,18 @@ export class Puzzle {
 
     hooksOn(id: string) {
         return this.byTarget.get(id) ?? [];
+    }
+
+    /** Held by nothing and holding nothing: the piece breaks when the player lets go. */
+    isFree(s: State, id: string) {
+        return !s.p[id].broken && this.holders(s, id) === 0 && this.holding(s, id) === 0;
+    }
+
+    /** The player let go: every free piece breaks. Returns the pieces that broke. */
+    settle(s: State): string[] {
+        const broken: string[] = [];
+        this.cascade(s, broken);
+        return broken;
     }
 
     mobility(s: State, id: string): Mobility {
@@ -235,25 +256,22 @@ export class Puzzle {
                 this.detonate(s, id, res);
                 break;
             }
-            this.hooks.forEach((h, i) => {
-                if (s.hooks[i] && h.c.target === id && h.phi !== undefined && this.inGap(s, id, h.phi)) {
-                    s.hooks[i] = false;
-                    res.released.push(i);
-                }
-            });
-            if (res.released.length) {
-                this.cascade(s, res.broken);
-                if (stopOnEvent || s.p[id].broken) break;
-            }
+            this.engage(s, id);
+            if (stopOnEvent && this.isFree(s, id)) break;
         }
+        res.freed = this.isFree(s, id);
         return res;
     }
 
-    /** Slides a bar along its held leg; `amount` is signed along the mobility direction. */
-    slide(s: State, id: string, amount: number, stopOnEvent = false): MoveResult {
+    /**
+     * Slides a bar along its held leg; `amount` is signed along the mobility direction. A bar that has
+     * slid free can keep going along `freeDir` (the direction of the drag that freed it).
+     */
+    slide(s: State, id: string, amount: number, stopOnEvent = false, freeDir?: Vec2): MoveResult {
         const res = emptyResult();
-        const m = this.mobility(s, id);
-        if (m.kind !== 'slide') return { ...res, blocked: true };
+        const mob = this.mobility(s, id);
+        const m = mob.kind === 'slide' ? mob : freeDir && this.isFree(s, id) ? { kind: 'slide' as const, dir: freeDir, canFlip: false } : null;
+        if (!m) return { ...res, blocked: true };
         const p = this.byId.get(id)!;
         const steps = Math.ceil(Math.abs(amount) / BAR_STEP);
         const step = amount / Math.max(1, steps);
@@ -274,23 +292,10 @@ export class Puzzle {
                 this.detonate(s, id, res);
                 break;
             }
-            const pts = this.barPts(s, id);
-            this.hooks.forEach((h, i) => {
-                if (!s.hooks[i] || h.c.target !== id || h.seg === undefined) return;
-                if (offLeg(h.anchor, pts[h.seg], pts[h.seg + 1])) {
-                    s.hooks[i] = false;
-                    res.released.push(i);
-                }
-            });
-            if (ps.joint && offLeg(p, pts[0], pts[1])) {
-                ps.joint = false;
-                res.released.push(-1);
-            }
-            if (res.released.length) {
-                this.cascade(s, res.broken);
-                if (stopOnEvent || ps.broken) break;
-            }
+            this.engage(s, id);
+            if (stopOnEvent && this.isFree(s, id)) break;
         }
+        res.freed = this.isFree(s, id);
         return res;
     }
 
@@ -310,7 +315,8 @@ export class Puzzle {
         }
         res.moved = 180;
         if (hit === 'bomb') this.detonate(s, id, res);
-        this.cascade(s, res.broken);
+        this.engage(s, id);
+        res.freed = this.isFree(s, id);
         return res;
     }
 
@@ -327,6 +333,22 @@ export class Puzzle {
     }
 
     // ---------- internals ----------
+
+    /** Recomputes which hooks on `id` (and a screw's joint) hold it, from where the piece is now. */
+    private engage(s: State, id: string) {
+        const p = this.byId.get(id)!;
+        const ps = s.p[id];
+        if (isRing(p)) {
+            for (const i of this.hooksOn(id)) s.hooks[i] = !s.cut[i] && !ps.broken && !this.inGap(s, id, this.hooks[i].phi!);
+            return;
+        }
+        const pts = this.barPts(s, id);
+        for (const i of this.hooksOn(id)) {
+            const h = this.hooks[i];
+            s.hooks[i] = !s.cut[i] && !ps.broken && onLeg(h.anchor, pts[h.seg!], pts[h.seg! + 1]);
+        }
+        if (p.type === 'rolling-elbow') ps.joint = !ps.broken && onLeg(p, pts[0], pts[1]);
+    }
 
     private inGap(s: State, ringId: string, phi: number) {
         const p = this.byId.get(ringId)!;
@@ -425,7 +447,10 @@ export class Puzzle {
         s.p[id].broken = true;
         s.p[id].joint = false;
         this.hooks.forEach((h, i) => {
-            if (h.c.owner === id || h.c.target === id) s.hooks[i] = false;
+            if (h.c.owner === id || h.c.target === id) {
+                s.hooks[i] = false;
+                s.cut[i] = true;
+            }
         });
     }
 
@@ -448,14 +473,14 @@ export class Puzzle {
 }
 
 function emptyResult(): MoveResult {
-    return { moved: 0, blocked: false, released: [], broken: [], exploded: false };
+    return { moved: 0, blocked: false, freed: false, broken: [], exploded: false };
 }
 
-/** True when `pt` no longer projects onto the segment a-b (the leg has slid out of the sleeve). */
-function offLeg(pt: Vec2, a: Vec2, b: Vec2) {
+/** True while the sleeve at `pt` still sits on leg a-b (the leg has not slid out, or has slid back in). */
+function onLeg(pt: Vec2, a: Vec2, b: Vec2) {
     const len = dist(a, b) || 1;
     const t = ((pt.x - a.x) * (b.x - a.x) + (pt.y - a.y) * (b.y - a.y)) / len;
-    return t < -2 || t > len + 2;
+    return t >= -2 && t <= len + 2 && distToSeg(pt, a, b) < 3;
 }
 
 /** Sleeve position when a connection has no explicit anchor: the target's wire point nearest the owner's rim. */
