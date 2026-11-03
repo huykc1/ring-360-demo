@@ -40,6 +40,8 @@ export interface MoveResult {
     released: number[];
     broken: string[];
     exploded: boolean;
+    /** When a move is blocked: where the moving piece touched another piece, and which one. */
+    hit?: { face: FaceId; at: Vec2; other: string };
 }
 
 export type Mobility =
@@ -312,6 +314,18 @@ export class Puzzle {
         return res;
     }
 
+    /** Boosters: breaks the given pieces outright; pieces they held are released. */
+    smash(s: State, ids: string[]): MoveResult {
+        const res = emptyResult();
+        for (const id of ids) {
+            if (!s.p[id] || s.p[id].broken) continue;
+            this.forceBreak(s, id);
+            res.broken.push(id);
+        }
+        this.cascade(s, res.broken);
+        return res;
+    }
+
     // ---------- internals ----------
 
     private inGap(s: State, ringId: string, phi: number) {
@@ -371,7 +385,11 @@ export class Puzzle {
         if (bomb) pts.push(bomb);
         for (const q of others) {
             if (before.has(q.id)) continue;
-            if (pts.some((pt) => this.distToPiece(s, q.id, pt) < CONTACT)) return 'block';
+            const at = pts.find((pt) => this.distToPiece(s, q.id, pt) < CONTACT);
+            if (at) {
+                res.hit = { face, at, other: q.id };
+                return 'block';
+            }
         }
         for (let i = 0; i < this.level.fixedBombs.length; i++) {
             const fb = this.level.fixedBombs[i];

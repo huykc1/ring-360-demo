@@ -54,6 +54,15 @@ Kept close to the reference file. Fields: `schema` (`ring360-level`), `schemaVer
 6. Blast radius: tunable, value `_TBD_` (tested in the build).
 7. Win: every piece is broken. There is no lose state; a player who gets stuck presses Restart.
 
+### Boosters (prototype values)
+
+Two booster buttons sit either side of the rotate pad at the bottom of the play screen.
+
+- **Hammer**: tap the button, then tap a piece: that piece breaks at once and the pieces it held are released. 3 uses per attempt.
+- **Rocket**: breaks the 3 pieces nearest the middle of the face turned towards the player. 2 uses per attempt.
+- The badge shows the uses left; at 0 it shows "+". There is no shop: tapping an empty booster only shows a message. Restart refills both.
+- Final counts, prices and whether boosters carry over between levels: `_TBD_`.
+
 ## 4. Level generation
 
 The designer picks a preset (Normal, Hard, Super hard), adjusts any value, and presses Generate. The result can then be edited by hand. Same parameters + same seed give the same level.

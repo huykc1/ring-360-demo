@@ -4,6 +4,12 @@ import { angleOf, wrap } from '../core/geom';
 import { Puzzle, type MoveResult, type State } from '../core/rules';
 import type { Level, Vec2 } from '../core/types';
 import { button, FONT, INK, MUTED } from './ui';
+import { RotatePad } from './RotatePad';
+import { BoosterButton } from './BoosterButton';
+
+const HAMMERS = 3;
+const ROCKETS = 2;
+const ROCKET_PIECES = 3;
 
 type Drag =
     | { kind: 'orbit'; x: number; y: number }
@@ -22,6 +28,15 @@ export class Play extends Phaser.Scene {
     private toast!: Phaser.GameObjects.Text;
     private winLayer?: Phaser.GameObjects.Container;
     private pinch?: number;
+    private pad!: RotatePad;
+    private hammerBtn!: BoosterButton;
+    private rocketBtn!: BoosterButton;
+    /** Uses left this attempt (prototype values; restart refills them). */
+    private hammers = HAMMERS;
+    private rockets = ROCKETS;
+    /** The hammer is waiting for the player to tap a piece. */
+    private armed = false;
+    private lastSpark = 0;
 
     constructor() {
         super('Play');
@@ -32,6 +47,9 @@ export class Play extends Phaser.Scene {
         this.index = data.index;
         this.drag = null;
         this.winLayer = undefined;
+        this.hammers = HAMMERS;
+        this.rockets = ROCKETS;
+        this.armed = false;
     }
 
     create() {
@@ -48,12 +66,22 @@ export class Play extends Phaser.Scene {
         this.add.text(width / 2, 70, this.level.name, { fontFamily: FONT, fontSize: '34px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
         this.piecesText = this.add.text(width / 2, 112, '', { fontFamily: FONT, fontSize: '26px', color: MUTED }).setOrigin(0.5);
         this.add
-            .text(width / 2, height - 60, 'Drag the background to turn the cube · drag a ring to twist it', { fontFamily: FONT, fontSize: '24px', color: MUTED })
+            .text(width / 2, height - 52, 'Drag here or on the background to turn the cube · drag a ring to twist it', { fontFamily: FONT, fontSize: '22px', color: MUTED })
             .setOrigin(0.5);
+        this.pad = new RotatePad(this, width / 2, height - 190);
+        this.hammerBtn = new BoosterButton(this, width / 2 - 230, height - 190, 'hammer', () => this.toggleHammer());
+        this.rocketBtn = new BoosterButton(this, width / 2 + 230, height - 190, 'rocket', () => this.fireRocket());
+        this.hammerBtn.setCount(this.hammers);
+        this.rocketBtn.setCount(this.rockets);
+        this.pad.on('pointerdown', (p: Phaser.Input.Pointer) => {
+            if (this.winLayer) return;
+            this.drag = { kind: 'orbit', x: p.x, y: p.y };
+            this.pad.press(true);
+        });
         if (this.level.instruction) {
             this.add.text(width / 2, 170, this.level.instruction, { fontFamily: FONT, fontSize: '26px', color: INK, wordWrap: { width: width - 120 } }).setOrigin(0.5, 0);
         }
-        this.toast = this.add.text(width / 2, height - 130, '', { fontFamily: FONT, fontSize: '28px', color: '#9A520C' }).setOrigin(0.5).setAlpha(0);
+        this.toast = this.add.text(width / 2, height - 330, '', { fontFamily: FONT, fontSize: '28px', color: '#9A520C' }).setOrigin(0.5).setAlpha(0);
         this.updateHud();
 
         this.input.on('pointerdown', (p: Phaser.Input.Pointer, over: unknown[]) => this.onDown(p, over));
@@ -82,6 +110,10 @@ export class Play extends Phaser.Scene {
         const view = shared.view!;
         const c = this.client(p);
         const hit = view.pick(c.x, c.y);
+        if (this.armed && hit.pieceId) {
+            this.useHammer(hit.pieceId);
+            return;
+        }
         if (!hit.pieceId) {
             this.drag = { kind: 'orbit', x: p.x, y: p.y };
             return;
@@ -95,7 +127,10 @@ export class Play extends Phaser.Scene {
         else if (m.kind === 'flip') this.drag = { kind: 'tap', id, x: p.x, y: p.y };
         else {
             this.drag = { kind: 'orbit', x: p.x, y: p.y };
-            if (m.kind === 'none') this.say(m.reason === 'holds another piece' ? 'Free the pieces it holds first' : 'This piece is stuck');
+            if (m.kind === 'none') {
+                view.flash(id);
+                this.say(m.reason === 'holds another piece' ? 'Free the pieces it holds first' : 'This piece is stuck');
+            }
         }
     }
 
@@ -113,6 +148,7 @@ export class Play extends Phaser.Scene {
         if (!d || !p.isDown) return;
         if (d.kind === 'orbit') {
             view.orbit(p.x - d.x, p.y - d.y);
+            this.pad.spin(p.x - d.x);
             d.x = p.x;
             d.y = p.y;
             return;
@@ -141,6 +177,7 @@ export class Play extends Phaser.Scene {
         const d = this.drag;
         this.drag = null;
         this.pinch = undefined;
+        if (d?.kind === 'orbit') this.pad.press(false);
         if (!d) return;
         const tapped = (d.kind === 'tap' && Math.hypot(p.x - d.x, p.y - d.y) < 20) || (d.kind === 'slide' && d.canFlip && d.moved < 3);
         if (tapped && 'id' in d) this.apply(this.puzzle.flip(this.state, d.id), d.id);
@@ -148,6 +185,13 @@ export class Play extends Phaser.Scene {
 
     private apply(r: MoveResult, id: string) {
         const view = shared.view!;
+        // Bumping into another piece: sparks at the contact, the blocker glows red. Throttled while dragging.
+        if (r.blocked && r.hit && this.time.now - this.lastSpark > 180) {
+            this.lastSpark = this.time.now;
+            view.sparkAt(r.hit.face, r.hit.at);
+            view.flash(r.hit.other, 3, 380);
+            view.flash(id, 2.5, 240);
+        }
         if (r.moved > 0) view.updatePiece(id);
         if (r.exploded) this.boom(id);
         if (r.broken.length) view.breakPieces(r.broken);
@@ -157,6 +201,41 @@ export class Play extends Phaser.Scene {
             this.updateHud();
             if (this.puzzle.isWon(this.state)) this.time.delayedCall(450, () => this.win());
         }
+    }
+
+    // ---------- boosters ----------
+
+    private toggleHammer() {
+        if (this.winLayer) return;
+        if (this.hammers <= 0) return this.say('No hammers left (no shop in this prototype)');
+        this.armed = !this.armed;
+        this.hammerBtn.setArmed(this.armed);
+        if (this.armed) this.say('Tap a piece to smash it');
+    }
+
+    private useHammer(id: string) {
+        this.armed = false;
+        this.hammerBtn.setArmed(false);
+        this.hammers--;
+        this.hammerBtn.setCount(this.hammers);
+        this.boom(id);
+        this.apply(this.puzzle.smash(this.state, [id]), id);
+    }
+
+    /** Breaks the pieces nearest the middle of the face turned towards the player. */
+    private fireRocket() {
+        if (this.winLayer) return;
+        if (this.rockets <= 0) return this.say('No rockets left (no shop in this prototype)');
+        const face = shared.view!.frontFace();
+        const targets = this.level.pieces
+            .filter((p) => p.face === face && !this.state.p[p.id].broken)
+            .sort((a, b) => Math.hypot(a.x, a.y) - Math.hypot(b.x, b.y))
+            .slice(0, ROCKET_PIECES);
+        if (!targets.length) return this.say('Nothing to hit on this side: turn the cube');
+        this.rockets--;
+        this.rocketBtn.setCount(this.rockets);
+        targets.forEach((p, i) => this.time.delayedCall(i * 90, () => this.boom(p.id)));
+        this.apply(this.puzzle.smash(this.state, targets.map((p) => p.id)), targets[0].id);
     }
 
     private boom(id: string) {

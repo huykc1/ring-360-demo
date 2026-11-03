@@ -11,11 +11,24 @@ export interface PickResult {
     local?: Vec2;
 }
 
-interface Anim {
-    obj: THREE.Object3D;
+/** One flying chunk of a broken piece. */
+interface Shard {
+    mesh: THREE.Mesh;
+    home: THREE.Vector3;
+    /** Direction away from the piece centre, used to open the cracks. */
+    out: THREE.Vector3;
+    vel: THREE.Vector3;
+    spin: THREE.Vector3;
     t0: number;
-    dur: number;
+    popped?: boolean;
 }
+
+// Break animation timing (ms): a short crack, then the chunks fly off and fade.
+const CRACK_MS = 260;
+/** Safety cap: chunks are removed once they drop below the screen, or after this long. */
+const MAX_FLY_MS = 4000;
+const GRAVITY = 1100;
+const POP_UP = 260;
 
 const CUBE_COLOR = 0xf3e9d8;
 
@@ -27,7 +40,15 @@ export class CubeView {
     private pieces = new THREE.Group();
     private cube?: THREE.Mesh;
     private meshes = new Map<string, THREE.Group>();
-    private anims: Anim[] = [];
+    private shards: Shard[] = [];
+    /** Chunks of broken pieces; kept apart from `pieces` so a redraw does not cut the animation short. */
+    private debris = new THREE.Group();
+    private lastTick = performance.now();
+    /** Pieces already shattered in the current level, so a piece never breaks twice on screen. */
+    private shattered = new Set<string>();
+    /** Red "can't move" glows and shakes, by piece id. */
+    private flashes = new Map<string, { t0: number; dur: number; shake: number }>();
+    private sparks: { mesh: THREE.Mesh; vel: THREE.Vector3; t0: number; life: number }[] = [];
     private raycaster = new THREE.Raycaster();
     /** Zoom factor on top of the distance that fits the whole cube. */
     private zoomK = 1;
@@ -55,7 +76,7 @@ export class CubeView {
         key.position.set(0.6, 1, 1.2);
         this.camera.add(key);
         this.scene.add(this.root);
-        this.root.add(this.pieces);
+        this.root.add(this.pieces, this.debris);
         this.resetView();
 
         this.resizeObs = new ResizeObserver(() => this.resize());
@@ -117,6 +138,7 @@ export class CubeView {
         this.level = level;
         this.puzzle = puzzle ?? new Puzzle(level);
         this.state = state ?? this.puzzle.initial();
+        this.shattered.clear();
         if (sizeChanged || !this.cube) {
             this.buildCube();
             this.placeCamera();
@@ -149,13 +171,100 @@ export class CubeView {
         if (this.state && !this.state.p[id]?.broken) this.buildPiece(id);
     }
 
-    /** Pops pieces that just broke. */
+    /** Shatters pieces that just broke: they crack, split into chunks along the wire, and the chunks fly off. */
     breakPieces(ids: string[]) {
-        for (const id of ids) {
+        const now = performance.now();
+        ids.forEach((id, k) => {
+            // The mesh may already be gone (a moved piece is redrawn, and a broken one is not), so
+            // the chunks are built from the piece's data, not from its mesh.
+            if (this.shattered.has(id)) return;
+            this.shattered.add(id);
             const g = this.meshes.get(id);
-            if (!g) continue;
-            this.meshes.delete(id);
-            this.anims.push({ obj: g, t0: performance.now(), dur: 260 });
+            if (g) {
+                this.meshes.delete(id);
+                this.pieces.remove(g);
+                disposeGroup(g);
+            }
+            this.shatter(id, now + k * 70);
+        });
+    }
+
+    /** Glows a piece red and shakes it: "this one can't move". */
+    flash(id: string, shake = 5, dur = 480) {
+        this.flashes.set(id, { t0: performance.now(), dur, shake });
+    }
+
+    /** A burst of sparks where a moving piece bumped into another one. */
+    sparkAt(face: FaceId, at: Vec2) {
+        const size = this.level?.cubeSize ?? 400;
+        const { p, n } = to3D(face, at.x, at.y, size, TUBE_RADIUS + 2);
+        const normal = new THREE.Vector3(...n);
+        const now = performance.now();
+        // Bright core flash, then a spray of sparks.
+        const core = new THREE.Mesh(new THREE.SphereGeometry(9, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe9a8, transparent: true }));
+        core.position.set(...p);
+        this.debris.add(core);
+        this.sparks.push({ mesh: core, vel: new THREE.Vector3(), t0: now, life: 160 });
+        for (let i = 0; i < 22; i++) {
+            const hot = Math.random() < 0.5 ? 0xfff3a0 : 0xff8a1a;
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(2.6 + Math.random() * 2.4, 6, 4), new THREE.MeshBasicMaterial({ color: hot, transparent: true }));
+            mesh.position.set(...p);
+            const dir = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+            const vel = dir.multiplyScalar(160 + Math.random() * 220).addScaledVector(normal, 100 + Math.random() * 140);
+            this.debris.add(mesh);
+            this.sparks.push({ mesh, vel, t0: now, life: 320 + Math.random() * 220 });
+        }
+    }
+
+    private shatter(id: string, t0: number) {
+        const pz = this.puzzle!;
+        const s = this.state!;
+        const p = pz.byId.get(id)!;
+        const size = this.level!.cubeSize;
+        const lift = TUBE_RADIUS + 0.6;
+        const base = new THREE.Color(COLORS[p.color] ?? p.color ?? '#999999');
+        const ps = s.p[id];
+        const centre = v3(p.face, p, size, lift);
+        const normal = new THREE.Vector3(...to3D(p.face, p.x, p.y, size).n);
+        const chunks: { pts: Vec2[]; r: number; color: THREE.Color }[] = [];
+        const cut = (pts: Vec2[], r: number, color: THREE.Color, every: number) => {
+            const dense = densify(pts, 5);
+            for (let i = 0; i < dense.length - 1; i += every) chunks.push({ pts: dense.slice(i, Math.min(dense.length, i + every + 1)), r, color });
+        };
+        if (isRing(p)) {
+            const gap = ringGap(p);
+            const pts = ringPoints(p, p.radius ?? 48, ps.rot, gap, 4);
+            if (gap === 0) pts.push(pts[0]);
+            cut(pts, TUBE_RADIUS, base, 6 + Math.floor(Math.random() * 3));
+            for (const st of pz.stems(s, id)) {
+                if (Math.hypot(st.to.x - st.from.x, st.to.y - st.from.y) > 1) cut([st.from, st.to], TUBE_RADIUS * 0.62, base.clone().multiplyScalar(0.82), 3);
+                chunks.push({ pts: [st.to, { x: st.to.x + 0.5, y: st.to.y }], r: 7, color: base.clone().multiplyScalar(0.62) });
+            }
+        } else {
+            for (const c of barChunks(pz.barPts(s, id))) chunks.push({ pts: c, r: TUBE_RADIUS, color: base });
+            // A screw's metal joint falls off too.
+            if (ps.joint || p.type === 'rolling-elbow') chunks.push({ pts: [p, { x: p.x + 0.5, y: p.y }], r: 9, color: new THREE.Color(0xb8bcc4) });
+        }
+        // Gravity points down on screen whatever way the cube is turned.
+        for (const c of chunks) {
+            const world = densify(c.pts, 5).map((q) => v3(p.face, q, size, lift));
+            const mid = world.reduce((a, b) => a.add(b), new THREE.Vector3()).multiplyScalar(1 / world.length);
+            const geo =
+                world.length > 1 && world[0].distanceTo(world[world.length - 1]) > 1
+                    ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(world.map((w) => w.clone().sub(mid))), Math.max(4, world.length * 2), c.r, 8, false)
+                    : new THREE.BoxGeometry(c.r * 2, c.r * 2, c.r * 2);
+            const mat = new THREE.MeshStandardMaterial({ color: c.color, roughness: 0.32, metalness: 0.05, emissive: new THREE.Color(0xffffff), emissiveIntensity: 0 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.copy(mid);
+            this.debris.add(mesh);
+            const out = mid.clone().sub(centre).normalize();
+            const vel = normal
+                .clone()
+                .multiplyScalar(90 + Math.random() * 70)
+                .add(out.clone().multiplyScalar(60 + Math.random() * 60))
+                .add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(40));
+            const spin = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(6);
+            this.shards.push({ mesh, home: mid.clone(), out, vel, spin, t0 });
         }
     }
 
@@ -180,6 +289,20 @@ export class CubeView {
         const p = ray.intersectPlane(plane, new THREE.Vector3());
         if (!p) return null;
         return { x: p.dot(new THREE.Vector3(...f.u)), y: p.dot(new THREE.Vector3(...f.v)) };
+    }
+
+    /** The face pointing most towards the camera. */
+    frontFace(): FaceId {
+        let best: FaceId = 'front';
+        let bestZ = -Infinity;
+        for (const f of FACES) {
+            const z = new THREE.Vector3(...FRAMES[f].n).applyQuaternion(this.root.quaternion).z;
+            if (z > bestZ) {
+                bestZ = z;
+                best = f;
+            }
+        }
+        return best;
     }
 
     /** Screen position (CSS pixels relative to the canvas) of a face-local point. */
@@ -217,18 +340,91 @@ export class CubeView {
     private tick() {
         this.onFrame?.();
         const now = performance.now();
-        this.anims = this.anims.filter((a) => {
-            const t = Math.min(1, (now - a.t0) / a.dur);
-            const s = t < 0.3 ? 1 + t * 0.6 : (1.18 * (1 - t)) / 0.7;
-            a.obj.scale.setScalar(Math.max(0.001, s));
-            if (t >= 1) {
-                this.pieces.remove(a.obj);
-                disposeGroup(a.obj as THREE.Group);
+        const dt = Math.min(0.05, (now - this.lastTick) / 1000);
+        this.lastTick = now;
+        const down = new THREE.Vector3(0, -1, 0).applyQuaternion(this.root.quaternion.clone().invert());
+        this.shards = this.shards.filter((sh) => {
+            const t = now - sh.t0;
+            const mat = sh.mesh.material as THREE.MeshStandardMaterial;
+            if (t < 0) return true;
+            if (t < CRACK_MS) {
+                // Crack: a flash, a slight tremble, and the chunks easing apart so the breaks show.
+                const k = t / CRACK_MS;
+                mat.emissiveIntensity = 0.3 * (1 - k);
+                const j = 1.2 * (1 - k);
+                sh.mesh.position
+                    .copy(sh.home)
+                    .addScaledVector(sh.out, 5 * k * k)
+                    .add(new THREE.Vector3((Math.random() - 0.5) * j, (Math.random() - 0.5) * j, (Math.random() - 0.5) * j));
+                return true;
+            }
+            const flying = t - CRACK_MS;
+            mat.emissiveIntensity = 0;
+            if (!sh.popped) {
+                // Kick the chunk up a little (on screen) before gravity takes over.
+                sh.vel.addScaledVector(down, -POP_UP * (0.7 + Math.random() * 0.6));
+                sh.popped = true;
+            }
+            sh.vel.addScaledVector(down, GRAVITY * dt);
+            sh.vel.multiplyScalar(1 - 0.6 * dt);
+            sh.mesh.position.addScaledVector(sh.vel, dt);
+            sh.mesh.rotation.x += sh.spin.x * dt;
+            sh.mesh.rotation.y += sh.spin.y * dt;
+            sh.mesh.rotation.z += sh.spin.z * dt;
+            const below = sh.mesh.getWorldPosition(new THREE.Vector3()).project(this.camera).y < -1.25;
+            if (below || flying > MAX_FLY_MS) {
+                this.debris.remove(sh.mesh);
+                sh.mesh.geometry.dispose();
+                mat.dispose();
                 return false;
             }
             return true;
         });
+        this.tickFlashes(now);
+        this.sparks = this.sparks.filter((sp) => {
+            const k = (now - sp.t0) / sp.life;
+            const mat = sp.mesh.material as THREE.MeshBasicMaterial;
+            if (k >= 1) {
+                this.debris.remove(sp.mesh);
+                sp.mesh.geometry.dispose();
+                mat.dispose();
+                return false;
+            }
+            sp.vel.addScaledVector(down, GRAVITY * 0.5 * dt);
+            sp.mesh.position.addScaledVector(sp.vel, dt);
+            mat.opacity = 1 - k;
+            sp.mesh.scale.setScalar(1 - k * 0.6);
+            return true;
+        });
         this.renderer.render(this.scene, this.camera);
+    }
+
+    private tickFlashes(now: number) {
+        for (const [id, f] of this.flashes) {
+            const g = this.meshes.get(id);
+            const k = (now - f.t0) / f.dur;
+            const done = k >= 1 || !g;
+            if (g) {
+                const sel = id === this.selected;
+                g.traverse((o) => {
+                    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+                    if (!m || !('emissive' in m)) return;
+                    if (done) {
+                        m.emissive.set(sel ? 0xff8a1f : 0x000000);
+                        m.emissiveIntensity = sel ? 0.45 : 0;
+                    } else {
+                        m.emissive.set(0xff2a1a);
+                        m.emissiveIntensity = 0.85 * (1 - k);
+                    }
+                });
+                const p = this.puzzle?.byId.get(id);
+                if (p && !done) {
+                    const u = new THREE.Vector3(...FRAMES[p.face].u);
+                    g.position.copy(u.multiplyScalar(Math.sin(k * Math.PI * 7) * f.shake * (1 - k)));
+                } else g.position.set(0, 0, 0);
+            }
+            if (done) this.flashes.delete(id);
+        }
     }
 
     private buildCube() {
@@ -306,6 +502,41 @@ function plastic(color: THREE.Color, highlight: boolean) {
 function v3(face: FaceId, pt: Vec2, size: number, lift: number) {
     const { p } = to3D(face, pt.x, pt.y, size, lift);
     return new THREE.Vector3(...p);
+}
+
+/**
+ * Splits a bar's path for the break animation: each bend stays as a small L-shaped chunk, and each
+ * straight leg between bends breaks into one to three pieces depending on its length.
+ */
+function barChunks(pts: Vec2[]): Vec2[][] {
+    const CORNER = 14;
+    const along = (a: Vec2, b: Vec2, d: number): Vec2 => {
+        const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        return { x: a.x + ((b.x - a.x) * d) / len, y: a.y + ((b.y - a.y) * d) / len };
+    };
+    const out: Vec2[][] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+        let a = pts[i];
+        let b = pts[i + 1];
+        const full = Math.hypot(b.x - a.x, b.y - a.y);
+        const trim = Math.min(CORNER, full / 3);
+        if (i > 0) a = along(a, b, trim);
+        if (i < pts.length - 2) b = along(b, a, trim);
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const n = Math.max(1, Math.min(5, Math.round(len / 28)));
+        for (let k = 0; k < n; k++) {
+            // Uneven cuts look more like a real break.
+            const t0 = k === 0 ? 0 : (k + (Math.random() - 0.5) * 0.3) / n;
+            const t1 = k === n - 1 ? 1 : (k + 1 + (Math.random() - 0.5) * 0.3) / n;
+            out.push([along(a, b, len * t0), along(a, b, len * t1)]);
+        }
+        if (i < pts.length - 2) {
+            const c = pts[i + 1];
+            const next = pts[i + 2];
+            out.push([along(c, pts[i], Math.min(CORNER, full / 3)), c, along(c, next, Math.min(CORNER, Math.hypot(next.x - c.x, next.y - c.y) / 3))]);
+        }
+    }
+    return out;
 }
 
 function densify(pts: Vec2[], step: number): Vec2[] {
