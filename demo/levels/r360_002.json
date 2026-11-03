@@ -1,0 +1,67 @@
+{
+  "schema": "ring360-level",
+  "schemaVersion": 1,
+  "id": "r360_002",
+  "name": "Around the corner",
+  "version": 1,
+  "status": "PROD",
+  "difficulty": "normal",
+  "category": "tutorial",
+  "cubeSize": 400,
+  "bombRadius": 70,
+  "pieces": [
+    {
+      "id": "a",
+      "type": "ring",
+      "face": "front",
+      "x": 120,
+      "y": 0,
+      "color": "violet",
+      "rotation": 90,
+      "radius": 48,
+      "gap": 110
+    },
+    {
+      "id": "b",
+      "type": "ring",
+      "face": "right",
+      "x": -110,
+      "y": 0,
+      "color": "mint",
+      "rotation": 0,
+      "radius": 48,
+      "gap": 120
+    },
+    {
+      "id": "c",
+      "type": "bar",
+      "face": "front",
+      "x": 0,
+      "y": 0,
+      "color": "coral",
+      "rotation": 90,
+      "path": [
+        {
+          "x": -55,
+          "y": 0
+        },
+        {
+          "x": 55,
+          "y": 0
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "owner": "a",
+      "target": "b"
+    },
+    {
+      "owner": "a",
+      "target": "c"
+    }
+  ],
+  "fixedBombs": [],
+  "instruction": "Some hooks reach over the edge. Turn the cube to follow them."
+}

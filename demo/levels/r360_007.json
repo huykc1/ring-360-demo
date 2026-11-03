@@ -1,0 +1,666 @@
+{
+  "schema": "ring360-level",
+  "schemaVersion": 1,
+  "id": "r360_007",
+  "name": "Whole cube",
+  "version": 1,
+  "status": "PROD",
+  "difficulty": "super_hard",
+  "category": "",
+  "cubeSize": 400,
+  "bombRadius": 70,
+  "pieces": [
+    {
+      "id": "c1",
+      "type": "closed",
+      "face": "front",
+      "x": 133,
+      "y": -124,
+      "color": "blue",
+      "rotation": 0,
+      "radius": 51
+    },
+    {
+      "id": "r1",
+      "type": "ring",
+      "face": "right",
+      "x": -126,
+      "y": 4,
+      "color": "mint",
+      "rotation": 70,
+      "radius": 48,
+      "gap": 106
+    },
+    {
+      "id": "r2",
+      "type": "ring",
+      "face": "top",
+      "x": 5,
+      "y": 132,
+      "color": "coral",
+      "rotation": 115,
+      "radius": 55,
+      "gap": 102
+    },
+    {
+      "id": "r3",
+      "type": "ring",
+      "face": "right",
+      "x": -2,
+      "y": 4,
+      "color": "teal",
+      "rotation": 75,
+      "radius": 48,
+      "gap": 100
+    },
+    {
+      "id": "r4",
+      "type": "ring",
+      "face": "front",
+      "x": 125,
+      "y": 132,
+      "color": "blue",
+      "rotation": 160,
+      "radius": 55,
+      "gap": 101
+    },
+    {
+      "id": "r5",
+      "type": "ring",
+      "face": "bottom",
+      "x": 130,
+      "y": -128,
+      "color": "teal",
+      "rotation": 335,
+      "radius": 47,
+      "gap": 105
+    },
+    {
+      "id": "r6",
+      "type": "ring",
+      "face": "top",
+      "x": 125,
+      "y": -3,
+      "color": "violet",
+      "rotation": 335,
+      "radius": 50,
+      "gap": 125
+    },
+    {
+      "id": "r7",
+      "type": "ring",
+      "face": "right",
+      "x": 4,
+      "y": -127,
+      "color": "teal",
+      "rotation": 230,
+      "radius": 51,
+      "gap": 118
+    },
+    {
+      "id": "r8",
+      "type": "ring",
+      "face": "front",
+      "x": -1,
+      "y": 0,
+      "color": "violet",
+      "rotation": 170,
+      "radius": 49,
+      "gap": 111
+    },
+    {
+      "id": "r9",
+      "type": "ring",
+      "face": "top",
+      "x": -132,
+      "y": 126,
+      "color": "violet",
+      "rotation": 280,
+      "radius": 47,
+      "gap": 119
+    },
+    {
+      "id": "b1",
+      "type": "bar",
+      "face": "bottom",
+      "x": 1,
+      "y": 2,
+      "color": "violet",
+      "rotation": 0,
+      "path": [
+        {
+          "x": -45,
+          "y": 0
+        },
+        {
+          "x": 45,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "id": "r10",
+      "type": "ring",
+      "face": "left",
+      "x": 126,
+      "y": -136,
+      "color": "teal",
+      "rotation": 55,
+      "radius": 55,
+      "gap": 82
+    },
+    {
+      "id": "b2",
+      "type": "bar",
+      "face": "left",
+      "x": 4,
+      "y": -131,
+      "color": "violet",
+      "rotation": 90,
+      "path": [
+        {
+          "x": -45,
+          "y": 0
+        },
+        {
+          "x": 45,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "id": "l1",
+      "type": "elbow",
+      "face": "top",
+      "x": -5,
+      "y": -126,
+      "color": "gold",
+      "rotation": 90,
+      "path": [
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "r11",
+      "type": "ring",
+      "face": "back",
+      "x": 128,
+      "y": -133,
+      "color": "mint",
+      "rotation": 220,
+      "radius": 50,
+      "gap": 103
+    },
+    {
+      "id": "b3",
+      "type": "bar",
+      "face": "left",
+      "x": -124,
+      "y": -127,
+      "color": "mint",
+      "rotation": -90,
+      "path": [
+        {
+          "x": -45,
+          "y": 0
+        },
+        {
+          "x": 45,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "id": "r12",
+      "type": "ring",
+      "face": "bottom",
+      "x": 134,
+      "y": 131,
+      "color": "blue",
+      "rotation": 330,
+      "radius": 50,
+      "gap": 106
+    },
+    {
+      "id": "b4",
+      "type": "bar",
+      "face": "right",
+      "x": 125,
+      "y": -135,
+      "color": "gold",
+      "rotation": 270,
+      "path": [
+        {
+          "x": -45,
+          "y": 0
+        },
+        {
+          "x": 45,
+          "y": 0
+        }
+      ]
+    },
+    {
+      "id": "r13",
+      "type": "ring",
+      "face": "front",
+      "x": -3,
+      "y": -128,
+      "color": "mint",
+      "rotation": 315,
+      "radius": 50,
+      "gap": 135
+    },
+    {
+      "id": "l2",
+      "type": "elbow",
+      "face": "left",
+      "x": 124,
+      "y": -1,
+      "color": "coral",
+      "rotation": 0,
+      "path": [
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "l3",
+      "type": "elbow",
+      "face": "back",
+      "x": 127,
+      "y": 4,
+      "color": "violet",
+      "rotation": 0,
+      "path": [
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "u1",
+      "type": "u",
+      "face": "left",
+      "x": -4,
+      "y": 5,
+      "color": "green",
+      "rotation": 0,
+      "path": [
+        {
+          "x": 36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "u2",
+      "type": "u",
+      "face": "front",
+      "x": -133,
+      "y": -130,
+      "color": "green",
+      "rotation": 90,
+      "path": [
+        {
+          "x": 36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "u3",
+      "type": "u",
+      "face": "right",
+      "x": 5,
+      "y": 132,
+      "color": "violet",
+      "rotation": 180,
+      "path": [
+        {
+          "x": 36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "r14",
+      "type": "ring",
+      "face": "back",
+      "x": -126,
+      "y": 128,
+      "color": "violet",
+      "rotation": 330,
+      "radius": 53,
+      "gap": 119
+    }
+  ],
+  "connections": [
+    {
+      "owner": "c1",
+      "target": "r1",
+      "anchor": {
+        "x": -161.5,
+        "y": -28.3
+      }
+    },
+    {
+      "owner": "c1",
+      "target": "r2",
+      "anchor": {
+        "x": 41.5,
+        "y": 173.1
+      }
+    },
+    {
+      "owner": "r1",
+      "target": "r3",
+      "anchor": {
+        "x": -50,
+        "y": 4
+      }
+    },
+    {
+      "owner": "r1",
+      "target": "r4",
+      "anchor": {
+        "x": 166.7,
+        "y": 96.2
+      }
+    },
+    {
+      "owner": "r4",
+      "target": "r5",
+      "anchor": {
+        "x": 128.3,
+        "y": -175
+      }
+    },
+    {
+      "owner": "r2",
+      "target": "r6",
+      "anchor": {
+        "x": 91.8,
+        "y": 34.4
+      }
+    },
+    {
+      "owner": "r3",
+      "target": "r7",
+      "anchor": {
+        "x": 1.7,
+        "y": -76.1
+      }
+    },
+    {
+      "owner": "r1",
+      "target": "r7",
+      "anchor": {
+        "x": -31.9,
+        "y": -90.8
+      }
+    },
+    {
+      "owner": "r4",
+      "target": "r8",
+      "anchor": {
+        "x": 32.8,
+        "y": 35.4
+      }
+    },
+    {
+      "owner": "c1",
+      "target": "r8",
+      "anchor": {
+        "x": 35,
+        "y": -33.3
+      }
+    },
+    {
+      "owner": "r2",
+      "target": "r9",
+      "anchor": {
+        "x": -85,
+        "y": 128.1
+      }
+    },
+    {
+      "owner": "r5",
+      "target": "b1",
+      "anchor": {
+        "x": 46,
+        "y": 2
+      }
+    },
+    {
+      "owner": "r9",
+      "target": "r10",
+      "anchor": {
+        "x": 126,
+        "y": -191
+      }
+    },
+    {
+      "owner": "r10",
+      "target": "b2",
+      "anchor": {
+        "x": 4,
+        "y": -136
+      }
+    },
+    {
+      "owner": "r6",
+      "target": "l1",
+      "anchor": {
+        "x": 31,
+        "y": -162
+      }
+    },
+    {
+      "owner": "r11",
+      "target": "b3",
+      "anchor": {
+        "x": -124,
+        "y": -133
+      }
+    },
+    {
+      "owner": "r7",
+      "target": "b4",
+      "anchor": {
+        "x": 125,
+        "y": -127
+      }
+    },
+    {
+      "owner": "r3",
+      "target": "b4",
+      "anchor": {
+        "x": 125,
+        "y": -90
+      }
+    },
+    {
+      "owner": "r9",
+      "target": "r13",
+      "anchor": {
+        "x": -36.1,
+        "y": -165.5
+      }
+    },
+    {
+      "owner": "r8",
+      "target": "r13",
+      "anchor": {
+        "x": -2.2,
+        "y": -78
+      }
+    },
+    {
+      "owner": "r10",
+      "target": "l2",
+      "anchor": {
+        "x": 88,
+        "y": -37
+      }
+    },
+    {
+      "owner": "r11",
+      "target": "l3",
+      "anchor": {
+        "x": 91,
+        "y": -32
+      }
+    },
+    {
+      "owner": "r10",
+      "target": "u1",
+      "anchor": {
+        "x": 32,
+        "y": -31
+      }
+    },
+    {
+      "owner": "r13",
+      "target": "u2",
+      "anchor": {
+        "x": -97,
+        "y": -128
+      }
+    },
+    {
+      "owner": "r10",
+      "target": "u2",
+      "anchor": {
+        "x": -169,
+        "y": -136
+      }
+    },
+    {
+      "owner": "r5",
+      "target": "u3",
+      "anchor": {
+        "x": -31,
+        "y": 168
+      }
+    },
+    {
+      "owner": "r12",
+      "target": "r14",
+      "anchor": {
+        "x": -129,
+        "y": 180.9
+      }
+    }
+  ],
+  "fixedBombs": [],
+  "generator": {
+    "preset": "Super hard",
+    "seed": 42,
+    "params": {
+      "faces": 6,
+      "edgeHookShare": 0.2,
+      "maxOwn": 4,
+      "maxHeld": 3,
+      "colors": 7,
+      "rings": {
+        "min": 10,
+        "max": 16
+      },
+      "closed": {
+        "min": 0,
+        "max": 3
+      },
+      "bars": {
+        "min": 6,
+        "max": 10
+      },
+      "screws": {
+        "min": 0,
+        "max": 2
+      },
+      "bombs": {
+        "min": 1,
+        "max": 2
+      },
+      "depth": {
+        "min": 3,
+        "max": 6
+      },
+      "radius": {
+        "min": 44,
+        "max": 55
+      },
+      "gap": {
+        "min": 100,
+        "max": 135
+      }
+    }
+  }
+}

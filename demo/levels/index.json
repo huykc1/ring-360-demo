@@ -1,0 +1,46 @@
+{
+  "levels": [
+    {
+      "id": "r360_001",
+      "name": "First release",
+      "difficulty": "normal",
+      "file": "r360_001.json"
+    },
+    {
+      "id": "r360_002",
+      "name": "Around the corner",
+      "difficulty": "normal",
+      "file": "r360_002.json"
+    },
+    {
+      "id": "r360_003",
+      "name": "Four faces",
+      "difficulty": "normal",
+      "file": "r360_003.json"
+    },
+    {
+      "id": "r360_004",
+      "name": "Ring garden",
+      "difficulty": "normal",
+      "file": "r360_004.json"
+    },
+    {
+      "id": "r360_005",
+      "name": "Tight corners",
+      "difficulty": "hard",
+      "file": "r360_005.json"
+    },
+    {
+      "id": "r360_006",
+      "name": "Charged",
+      "difficulty": "super_hard",
+      "file": "r360_006.json"
+    },
+    {
+      "id": "r360_007",
+      "name": "Whole cube",
+      "difficulty": "super_hard",
+      "file": "r360_007.json"
+    }
+  ]
+}
