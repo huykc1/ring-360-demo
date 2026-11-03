@@ -1,0 +1,331 @@
+{
+  "schema": "ring360-level",
+  "schemaVersion": 1,
+  "id": "r360_004",
+  "name": "Ring garden",
+  "version": 1,
+  "status": "PROD",
+  "difficulty": "normal",
+  "category": "",
+  "cubeSize": 400,
+  "bombRadius": 70,
+  "pieces": [
+    {
+      "id": "r1",
+      "type": "ring",
+      "face": "front",
+      "x": 131,
+      "y": -126,
+      "color": "gold",
+      "rotation": 335,
+      "radius": 50,
+      "gap": 104
+    },
+    {
+      "id": "r2",
+      "type": "ring",
+      "face": "front",
+      "x": -1,
+      "y": -133,
+      "color": "coral",
+      "rotation": 295,
+      "radius": 46,
+      "gap": 109
+    },
+    {
+      "id": "r3",
+      "type": "ring",
+      "face": "top",
+      "x": -127,
+      "y": 135,
+      "color": "mint",
+      "rotation": 295,
+      "radius": 49,
+      "gap": 100
+    },
+    {
+      "id": "r4",
+      "type": "ring",
+      "face": "top",
+      "x": 0,
+      "y": 132,
+      "color": "teal",
+      "rotation": 275,
+      "radius": 53,
+      "gap": 109
+    },
+    {
+      "id": "r5",
+      "type": "ring",
+      "face": "right",
+      "x": -131,
+      "y": -1,
+      "color": "violet",
+      "rotation": 155,
+      "radius": 44,
+      "gap": 95
+    },
+    {
+      "id": "r6",
+      "type": "ring",
+      "face": "right",
+      "x": -134,
+      "y": 128,
+      "color": "green",
+      "rotation": 140,
+      "radius": 55,
+      "gap": 126
+    },
+    {
+      "id": "r7",
+      "type": "ring",
+      "face": "left",
+      "x": -4,
+      "y": -125,
+      "color": "green",
+      "rotation": 65,
+      "radius": 47,
+      "gap": 119
+    },
+    {
+      "id": "r8",
+      "type": "ring",
+      "face": "right",
+      "x": -6,
+      "y": -129,
+      "color": "violet",
+      "rotation": 335,
+      "radius": 45,
+      "gap": 132
+    },
+    {
+      "id": "r9",
+      "type": "ring",
+      "face": "front",
+      "x": 129,
+      "y": -2,
+      "color": "gold",
+      "rotation": 150,
+      "radius": 45,
+      "gap": 105
+    },
+    {
+      "id": "r10",
+      "type": "ring",
+      "face": "top",
+      "x": -129,
+      "y": -131,
+      "color": "blue",
+      "rotation": 50,
+      "radius": 47,
+      "gap": 131
+    },
+    {
+      "id": "u1",
+      "type": "u",
+      "face": "left",
+      "x": -133,
+      "y": -3,
+      "color": "coral",
+      "rotation": 90,
+      "path": [
+        {
+          "x": 36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": -36
+        },
+        {
+          "x": -36,
+          "y": 36
+        },
+        {
+          "x": 36,
+          "y": 36
+        }
+      ]
+    },
+    {
+      "id": "r11",
+      "type": "ring",
+      "face": "right",
+      "x": -2,
+      "y": -1,
+      "color": "violet",
+      "rotation": 40,
+      "radius": 44,
+      "gap": 128
+    },
+    {
+      "id": "r12",
+      "type": "ring",
+      "face": "left",
+      "x": 126,
+      "y": -134,
+      "color": "gold",
+      "rotation": 110,
+      "radius": 45,
+      "gap": 126
+    }
+  ],
+  "connections": [
+    {
+      "owner": "r1",
+      "target": "r2",
+      "anchor": {
+        "x": 44.9,
+        "y": -130.6
+      }
+    },
+    {
+      "owner": "r2",
+      "target": "r3",
+      "anchor": {
+        "x": -93.2,
+        "y": 170.4
+      }
+    },
+    {
+      "owner": "r3",
+      "target": "r4",
+      "anchor": {
+        "x": -53,
+        "y": 133.3
+      }
+    },
+    {
+      "owner": "r1",
+      "target": "r4",
+      "anchor": {
+        "x": 35.9,
+        "y": 171
+      }
+    },
+    {
+      "owner": "r1",
+      "target": "r5",
+      "anchor": {
+        "x": -163.6,
+        "y": -30.5
+      }
+    },
+    {
+      "owner": "r5",
+      "target": "r6",
+      "anchor": {
+        "x": -132.7,
+        "y": 73
+      }
+    },
+    {
+      "owner": "r3",
+      "target": "r7",
+      "anchor": {
+        "x": 28.2,
+        "y": -159.3
+      }
+    },
+    {
+      "owner": "r5",
+      "target": "r8",
+      "anchor": {
+        "x": -37.4,
+        "y": -96.8
+      }
+    },
+    {
+      "owner": "r6",
+      "target": "r9",
+      "anchor": {
+        "x": 161.6,
+        "y": 29
+      }
+    },
+    {
+      "owner": "r7",
+      "target": "r10",
+      "anchor": {
+        "x": -164.5,
+        "y": -100.2
+      }
+    },
+    {
+      "owner": "r7",
+      "target": "u1",
+      "anchor": {
+        "x": -97,
+        "y": -39
+      }
+    },
+    {
+      "owner": "r6",
+      "target": "r11",
+      "anchor": {
+        "x": -33.5,
+        "y": 29.8
+      }
+    },
+    {
+      "owner": "r5",
+      "target": "r11",
+      "anchor": {
+        "x": -46,
+        "y": -1
+      }
+    },
+    {
+      "owner": "r3",
+      "target": "r12",
+      "anchor": {
+        "x": 128.9,
+        "y": -178.9
+      }
+    }
+  ],
+  "fixedBombs": [],
+  "generator": {
+    "preset": "Normal",
+    "seed": 27,
+    "params": {
+      "faces": 4,
+      "edgeHookShare": 0.2,
+      "maxOwn": 3,
+      "maxHeld": 3,
+      "colors": 7,
+      "rings": {
+        "min": 9,
+        "max": 16
+      },
+      "closed": {
+        "min": 0,
+        "max": 3
+      },
+      "bars": {
+        "min": 1,
+        "max": 8
+      },
+      "screws": {
+        "min": 0,
+        "max": 0
+      },
+      "bombs": {
+        "min": 0,
+        "max": 0
+      },
+      "depth": {
+        "min": 3,
+        "max": 5
+      },
+      "radius": {
+        "min": 44,
+        "max": 55
+      },
+      "gap": {
+        "min": 100,
+        "max": 135
+      }
+    }
+  }
+}

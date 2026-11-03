@@ -1,0 +1,8 @@
+{
+  "title": "Ring 360",
+  "tagline": "A 3D ring-untangling puzzle prototype built with Phaser 4",
+  "repo": "huykc1/ring-360-demo",
+  "pagesUrl": "https://huykc1.github.io/ring-360-demo",
+  "basePath": "/ring-360-demo",
+  "devPort": 8080
+}

@@ -1,0 +1,44 @@
+{
+  "schema": "ring360-level",
+  "schemaVersion": 1,
+  "id": "r360_001",
+  "name": "First release",
+  "version": 1,
+  "status": "PROD",
+  "difficulty": "normal",
+  "category": "tutorial",
+  "cubeSize": 400,
+  "bombRadius": 70,
+  "pieces": [
+    {
+      "id": "keeper",
+      "type": "ring",
+      "face": "front",
+      "x": -60,
+      "y": -40,
+      "color": "teal",
+      "rotation": 200,
+      "radius": 50,
+      "gap": 110
+    },
+    {
+      "id": "turn",
+      "type": "ring",
+      "face": "front",
+      "x": 50,
+      "y": 50,
+      "color": "gold",
+      "rotation": 40,
+      "radius": 50,
+      "gap": 110
+    }
+  ],
+  "connections": [
+    {
+      "owner": "keeper",
+      "target": "turn"
+    }
+  ],
+  "fixedBombs": [],
+  "instruction": "Drag the gold ring around until its gap reaches the teal hook."
+}
