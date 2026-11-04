@@ -219,7 +219,15 @@ export class Organiser {
         const renumbered = levels.filter((l, i) => !before.has(copyName(i, l.id)) && [...before].some((n) => n.endsWith(`_${l.id}.json`))).length;
         this.cols[this.sel] = structuredClone(w);
         await this.store().writeCollections(this.cols);
-        if (this.isDemo(w)) await this.project!.writeDemoIndex(levels.map(demoEntry));
+        if (this.isDemo(w)) {
+            // Levels the demo plays are tagged DEMO, so they group together in the Levels panel.
+            for (const l of levels) {
+                if (l.category.toUpperCase() === 'DEMO') continue;
+                l.category = 'DEMO';
+                await this.store().writeLevel(l, false);
+            }
+            await this.project!.writeDemoIndex(levels.map(demoEntry));
+        }
         this.copies = await this.store().listCollectionCopies(w.name);
         if (this.isDemo(w)) this.demoIds = levels.map((l) => l.id);
         this.say(`Saved ${w.name}: ${res.copied} copied, ${renumbered} renumbered, ${res.removed} removed`);

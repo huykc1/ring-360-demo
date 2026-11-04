@@ -151,7 +151,9 @@ The levels the demo plays are the files in `public/levels/` of this project, lis
 - keeps its version history, drafts and collection copies in `editor-data/` (not bundled into the game, and ignored by git except `editor-data/collections.json`);
 - shows a **Demo** collection in the Organiser that mirrors `index.json`. Add, remove or reorder levels there and press Save collection to rewrite `index.json`. Saving, renaming or deleting a level that is in the demo updates its `index.json` entry too.
 
-The live site only changes after the files are committed, pushed and released (`npm run release:latest`). The editor on the live site cannot write to the repository; in browser storage or another folder, **Import demo levels** copies the demo's current levels in for viewing and editing.
+The live site only changes after the files are committed, pushed and released (`npm run release:latest`). The editor on the live site cannot write to the repository.
+
+The demo's levels have the category **DEMO**, and the Levels panel groups levels by category with DEMO first (each group folds open and shut). In browser storage or any other folder, the editor adds the demo's levels by itself the first time it sees each one, so they are always there to look at; a demo level you delete there is not added back. Saving the Demo collection tags its levels DEMO.
 
 - **Levels panel**: `+` new, `⧉` duplicate, `⇩` import JSON files (Ring 360 levels or a 2D layout bank), `▤` import a folder, `🗑` delete, `🕘` older versions of the open level.
 - **Generator**: pick a preset, adjust values, press Generate. The result replaces the open level's pieces as an unsaved, undoable change.

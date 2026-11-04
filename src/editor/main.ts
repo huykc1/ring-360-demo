@@ -129,6 +129,7 @@ async function connect(store: Store) {
     app.store = store;
     ui.set('store', store.kind);
     app.levels = await store.listLevels();
+    await addDemoLevels(store);
     sortLevels();
     renderShell();
     const lastId = ui.get<string>('lastLevel', '');
@@ -334,24 +335,32 @@ async function importFiles() {
     input.click();
 }
 
-/** Fetches the levels bundled with the game (the demo's list) and adds copies here. */
-async function importDemoLevels() {
+const DEMO_CATEGORY = 'DEMO';
+
+/**
+ * Makes sure the levels the demo plays are in this storage, tagged DEMO, without asking. Each demo level
+ * is added once per storage, so one the designer deletes does not come back. In the project folder they
+ * are the demo's own files already.
+ */
+async function addDemoLevels(store: Store) {
+    if (store instanceof FolderStore && store.isProject) return;
     const base = import.meta.env.DEV ? '../levels/' : '../demo/levels/';
+    const seenKey = `demoSeen:${store.kind}:${store.label}`;
+    const seen = new Set(ui.get<string[]>(seenKey, []));
     try {
         const index = (await (await fetch(`${base}index.json`, { cache: 'no-cache' })).json()) as { levels: { id: string; file: string }[] };
-        const levels: Level[] = [];
-        for (const e of index.levels) levels.push(normalizeLevel(await (await fetch(`${base}${e.file}`, { cache: 'no-cache' })).json()));
-        const fresh = levels.filter((l) => !app.levels.some((x) => x.id === l.id));
-        if (!fresh.length) {
-            app.footer = 'The demo levels are already here';
-            return renderFooter();
+        for (const e of index.levels) {
+            if (seen.has(e.id)) continue;
+            seen.add(e.id);
+            if (app.levels.some((l) => l.id === e.id)) continue;
+            const level = normalizeLevel(await (await fetch(`${base}${e.file}`, { cache: 'no-cache' })).json());
+            level.category = DEMO_CATEGORY;
+            await store.writeLevel(level, false);
+            app.levels.push(level);
         }
-        await addLevels(fresh);
-        app.footer = `Imported ${fresh.length} demo level(s)`;
-        renderFooter();
+        ui.set(seenKey, [...seen]);
     } catch {
-        app.footer = 'Could not load the demo levels';
-        renderFooter();
+        /* offline or no demo build: the editor works without the demo levels */
     }
 }
 
@@ -699,6 +708,19 @@ window.addEventListener('storage', (e) => {
     if (app.store) renderHeader();
 });
 
+/** Levels grouped by category: DEMO first, then other categories A-Z, then levels without one. */
+function levelGroups(list: Level[]): [string, Level[]][] {
+    const groups = new Map<string, Level[]>();
+    for (const l of list) {
+        const shown = app.cur && l.id === app.cur.id ? app.cur : l;
+        const cat = shown.category.trim();
+        const key = cat.toUpperCase() === DEMO_CATEGORY ? DEMO_CATEGORY : cat || 'Uncategorised';
+        groups.set(key, [...(groups.get(key) ?? []), l]);
+    }
+    const rank = (k: string) => (k === DEMO_CATEGORY ? 0 : k === 'Uncategorised' ? 2 : 1);
+    return [...groups.entries()].sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b));
+}
+
 function renderLevels() {
     if (!el.levels || app.tab !== 'editor') return;
     const q = app.search.toLowerCase();
@@ -722,22 +744,37 @@ function renderLevels() {
             h('button', { class: 'icon', title: 'Duplicate level', disabled: !app.cur, onClick: duplicateLevel }, '⧉'),
             h('button', { class: 'icon', title: 'Import JSON files (levels or a 2D layout bank)', onClick: importFiles }, '⇩'),
             h('button', { class: 'icon', title: 'Import a folder of levels', onClick: importFolder }, '▤'),
-            !(app.store instanceof FolderStore && app.store.isProject) &&
-                h('button', { title: 'Copy the levels the demo plays into this storage', onClick: importDemoLevels }, 'Import demo levels'),
             h('button', { class: 'icon', title: 'Delete level', disabled: !app.cur, onClick: deleteLevel }, '🗑')
         ),
         search,
         h('div', { style: { height: '8px' } }),
-        list.map((l, i) => {
-            const shown = app.cur && l.id === app.cur.id ? app.cur : l;
-            const faces = new Set(shown.pieces.map((p) => p.face)).size;
+        levelGroups(list).map(([group, items]) => {
+            const collapsed = ui.get(`lvGroup:${group}`, false) && !q;
             return h(
                 'div',
-                { class: `lv${app.cur?.id === l.id ? ' active' : ''}`, onClick: () => app.cur?.id !== l.id && openLevel(l.id) },
-                h('span', { class: 'num' }, String(i + 1).padStart(2, '0')),
-                h('span', { class: 'name', title: l.id }, shown.name, app.cur?.id === l.id && dirty() ? ' •' : ''),
-                app.cur?.id === l.id ? h('button', { class: 'ghost icon', title: 'Older versions', onClick: (e: Event) => (e.stopPropagation(), showVersions(e.currentTarget as HTMLElement)) }, '🕘') : h('span'),
-                h('span', { class: 'sub' }, `${shown.pieces.length} pcs · ${faces} face${faces === 1 ? '' : 's'} `, h('span', { class: 'tag' }, shown.difficulty), ` ${shown.status}`)
+                { class: 'lv-group' },
+                h(
+                    'button',
+                    { class: 'lv-group-head', onClick: () => (ui.set(`lvGroup:${group}`, !collapsed), renderLevels()) },
+                    h('span', {}, collapsed ? '▸' : '▾'),
+                    h('span', { class: 'grow' }, group),
+                    h('span', { class: 'muted' }, String(items.length))
+                ),
+                !collapsed &&
+                    items.map((l, i) => {
+                        const shown = app.cur && l.id === app.cur.id ? app.cur : l;
+                        const faces = new Set(shown.pieces.map((p) => p.face)).size;
+                        return h(
+                            'div',
+                            { class: `lv${app.cur?.id === l.id ? ' active' : ''}`, onClick: () => app.cur?.id !== l.id && openLevel(l.id) },
+                            h('span', { class: 'num' }, String(i + 1).padStart(2, '0')),
+                            h('span', { class: 'name', title: l.id }, shown.name, app.cur?.id === l.id && dirty() ? ' •' : ''),
+                            app.cur?.id === l.id
+                                ? h('button', { class: 'ghost icon', title: 'Older versions', onClick: (e: Event) => (e.stopPropagation(), showVersions(e.currentTarget as HTMLElement)) }, '🕘')
+                                : h('span'),
+                            h('span', { class: 'sub' }, `${shown.pieces.length} pcs · ${faces} face${faces === 1 ? '' : 's'} `, h('span', { class: 'tag' }, shown.difficulty), ` ${shown.status}`)
+                        );
+                    })
             );
         }),
         !list.length && h('p', { class: 'muted' }, app.levels.length ? 'No match' : 'No levels yet: press + or import some.')
