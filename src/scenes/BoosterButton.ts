@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { CREAM, FONT, INK, softCard, TEAL } from './ui';
+import { FONT, softCard, T, TEAL } from './ui';
 
 export type BoosterKind = 'hammer' | 'rocket';
 
@@ -24,7 +24,7 @@ export class BoosterButton extends Phaser.GameObjects.Container {
             .text(s / 2 - 12, -s / 2 + 12, '', { fontFamily: FONT, fontSize: '28px', color: '#ffffff', fontStyle: 'bold' })
             .setOrigin(0.5);
         const label = scene.add
-            .text(0, s / 2 + 34, kind === 'hammer' ? 'Hammer' : 'Rocket', { fontFamily: FONT, fontSize: '30px', color: INK, fontStyle: 'bold' })
+            .text(0, s / 2 + 34, kind === 'hammer' ? 'Hammer' : 'Rocket', { fontFamily: FONT, fontSize: '30px', color: T.ink, fontStyle: 'bold' })
             .setOrigin(0.5);
         this.add([this.ring, this.bg, this.icon, this.badge, this.countText, label]);
         this.drawCard(false);
@@ -61,7 +61,7 @@ export class BoosterButton extends Phaser.GameObjects.Container {
     private drawCard(pressed: boolean) {
         const s = this.size;
         this.bg.clear();
-        softCard(this.bg, -s / 2, -s / 2, s, s, 38, CREAM, pressed);
+        softCard(this.bg, -s / 2, -s / 2, s, s, 38, T.card, pressed);
         this.icon.y = pressed ? 3 : 0;
     }
 }

@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { loadIndex, shared } from '../game/shared';
 import { normalizeLevel } from '../core/types';
-import { FONT, MUTED } from './ui';
+import { FONT, T } from './ui';
 
 /** Loads the level list, or in embed mode waits for the editor to send a level. */
 export class Boot extends Phaser.Scene {
@@ -16,7 +16,7 @@ export class Boot extends Phaser.Scene {
             return;
         }
         const { width, height } = this.scale;
-        this.add.text(width / 2, height / 2, 'Waiting for the editor…', { fontFamily: FONT, fontSize: '30px', color: MUTED }).setOrigin(0.5);
+        this.add.text(width / 2, height / 2, 'Waiting for the editor…', { fontFamily: FONT, fontSize: '30px', color: T.muted }).setOrigin(0.5);
         window.addEventListener('message', (e: MessageEvent) => {
             const data = e.data as { type?: string; level?: unknown };
             if (data?.type === 'ring360:play' && data.level) {

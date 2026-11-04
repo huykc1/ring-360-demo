@@ -150,3 +150,11 @@ footer { border-top: 1px solid var(--line); padding: 4px 12px; color: var(--mute
 .connect .row { justify-content: center; margin-top: 18px; }
 .popover { position: absolute; z-index: 10; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px; min-width: 200px; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
 .popover button { display: block; width: 100%; text-align: left; margin: 2px 0; }
+.switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--muted); font-size: 12px; user-select: none; }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--line); transition: background 0.15s; }
+.switch .track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s; }
+.switch input:checked + .track { background: #1f9d8f; }
+.switch input:checked + .track::after { transform: translateX(16px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+

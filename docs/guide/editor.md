@@ -130,6 +130,10 @@ Simulation: a simplified solver tries moves (rotate a ring or slide a bar until 
 
 - Play test HUD: Back to editor, Restart, level name, pieces left. No move counter, no timer.
 - The standalone demo (`/demo/`) has a level select screen. Which levels it ships with (for example a collection copied into the project): `_TBD_`.
+- Settings (gear button on the level select and play screens), remembered in the browser:
+  - **Dark theme**: game colours (navy background, dark cards); the cube stays cream. Changing it mid-level keeps progress.
+  - **Rotate from anywhere** (default ON): ON, a drag on any empty spot turns the cube; OFF, only drags that start on the rotate button at the bottom turn it.
+  - **Editor dark theme**: the same value as the editor's own "Dark" switch in its header.
 
 ## 8. Look and feel
 

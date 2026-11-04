@@ -652,15 +652,30 @@ function renderHeader() {
         h('button', { class: 'icon', title: 'Undo (Ctrl/Cmd+Z)', disabled: !app.undo.length || app.tab !== 'editor', onClick: undo }, '↶'),
         h('button', { class: 'icon', title: 'Redo (Shift+Ctrl/Cmd+Z)', disabled: !app.redo.length || app.tab !== 'editor', onClick: redo }, '↷'),
         h('button', { class: 'icon', title: 'Save (Ctrl/Cmd+S)', disabled: !dirty() || app.tab !== 'editor', onClick: save }, '💾'),
-        h('button', { class: 'icon', title: 'Theme', onClick: () => {
-            const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
-            document.documentElement.dataset.theme = next;
-            ui.set('theme', next);
-            net?.draw();
-        } }, '◐'),
+        themeSwitch(),
         h('button', { class: 'primary', disabled: !app.cur, onClick: openPlay }, '▶ Play')
     );
 }
+
+/** "Dark" on/off switch. The game's Settings dialog writes the same stored value. */
+function themeSwitch() {
+    const input = h('input', { type: 'checkbox', checked: document.documentElement.dataset.theme !== 'light' });
+    input.addEventListener('change', () => setTheme(input.checked ? 'dark' : 'light'));
+    return h('label', { class: 'switch', title: 'Dark theme' }, input, h('span', { class: 'track' }), 'Dark');
+}
+
+function setTheme(theme: 'dark' | 'light') {
+    document.documentElement.dataset.theme = theme;
+    ui.set('theme', theme);
+    net?.draw();
+}
+
+// Follow a theme change made in the game's Settings (another tab on the same site).
+window.addEventListener('storage', (e) => {
+    if (e.key !== 'ring360-ui:theme' || !e.newValue) return;
+    document.documentElement.dataset.theme = JSON.parse(e.newValue);
+    if (app.store) renderHeader();
+});
 
 function renderLevels() {
     if (!el.levels || app.tab !== 'editor') return;

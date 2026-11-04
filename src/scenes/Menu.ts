@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { loadIndex, loadLevel, shared } from '../game/shared';
 import { normalizeLevel, type Level } from '../core/types';
-import { button, FONT, INK, MUTED } from './ui';
+import { button, FONT, gearIcon, iconButton, openSettings, T } from './ui';
 
 const DIFF_COLOR: Record<string, number> = { normal: 0x4fcb9a, hard: 0xefb227, super_hard: 0xe8674a };
 
@@ -18,11 +18,12 @@ export class Menu extends Phaser.Scene {
     async create() {
         const { width, height } = this.scale;
         shared.view?.container.style.setProperty('visibility', 'hidden');
-        this.add.text(width / 2, 150, 'Ring 360', { fontFamily: FONT, fontSize: '84px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
-        this.add.text(width / 2, 230, 'Untangle the rings on every face of the cube', { fontFamily: FONT, fontSize: '28px', color: MUTED }).setOrigin(0.5);
-        this.add.text(width - 24, height - 30, __APP_VERSION__, { fontFamily: FONT, fontSize: '22px', color: MUTED }).setOrigin(1, 0.5);
+        this.add.text(width / 2, 150, 'Ring 360', { fontFamily: FONT, fontSize: '84px', color: T.ink, fontStyle: 'bold' }).setOrigin(0.5);
+        this.add.text(width / 2, 230, 'Untangle the rings on every face of the cube', { fontFamily: FONT, fontSize: '28px', color: T.muted }).setOrigin(0.5);
+        this.add.text(width - 24, height - 30, __APP_VERSION__, { fontFamily: FONT, fontSize: '22px', color: T.muted }).setOrigin(1, 0.5);
 
         button(this, width / 2, height - 110, 420, 84, 'Open level file…', () => this.openFile(), { size: 30 });
+        iconButton(this, width - 80, 80, 88, gearIcon, () => openSettings(this, () => this.scene.restart()));
 
         const levels = shared.levels.length ? shared.levels : await loadIndex();
         this.list = this.add.container(0, this.listTop);
@@ -37,12 +38,12 @@ export class Menu extends Phaser.Scene {
             const label = card.getData('label') as Phaser.GameObjects.Text;
             label.setText(`${String(i + 1).padStart(2, '0')}   ${lv.name}`).setFontSize(34).setX(-300).setOrigin(0, 0.5);
             const dot = this.add.circle(280, 0, 14, DIFF_COLOR[lv.difficulty] ?? 0xcccccc);
-            const diff = this.add.text(256, 0, lv.difficulty.replace('_', ' '), { fontFamily: FONT, fontSize: '24px', color: MUTED }).setOrigin(1, 0.5);
+            const diff = this.add.text(256, 0, lv.difficulty.replace('_', ' '), { fontFamily: FONT, fontSize: '24px', color: T.muted }).setOrigin(1, 0.5);
             card.add([dot, diff]);
             this.list!.add(card);
         });
         if (!levels.length) {
-            this.add.text(width / 2, 500, 'No bundled levels yet', { fontFamily: FONT, fontSize: '30px', color: MUTED }).setOrigin(0.5);
+            this.add.text(width / 2, 500, 'No bundled levels yet', { fontFamily: FONT, fontSize: '30px', color: T.muted }).setOrigin(0.5);
         }
 
         // Drag to scroll the list.

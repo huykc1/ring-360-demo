@@ -3,9 +3,10 @@ import { loadLevel, shared } from '../game/shared';
 import { angleOf, wrap } from '../core/geom';
 import { Puzzle, type MoveResult, type State } from '../core/rules';
 import type { Level, Vec2 } from '../core/types';
-import { button, chevronLeft, FONT, iconButton, INK, MUTED, restartArrow, softCard, TEAL } from './ui';
+import { button, chevronLeft, FONT, gearIcon, iconButton, openSettings, restartArrow, softCard, T, TEAL } from './ui';
 import { RotatePad } from './RotatePad';
 import { BoosterButton } from './BoosterButton';
+import { settings } from '../game/settings';
 
 const HAMMERS = 3;
 const ROCKETS = 2;
@@ -44,13 +45,17 @@ export class Play extends Phaser.Scene {
         super('Play');
     }
 
-    init(data: { level: Level; index: number }) {
+    /** `keep` carries an attempt across a rebuild (theme change) so progress is not lost. */
+    private keep?: { state: State; hammers: number; rockets: number };
+
+    init(data: { level: Level; index: number; keep?: { state: State; hammers: number; rockets: number } }) {
         this.level = data.level;
         this.index = data.index;
         this.drag = null;
         this.winLayer = undefined;
-        this.hammers = HAMMERS;
-        this.rockets = ROCKETS;
+        this.keep = data.keep;
+        this.hammers = data.keep?.hammers ?? HAMMERS;
+        this.rockets = data.keep?.rockets ?? ROCKETS;
         this.armed = false;
     }
 
@@ -59,24 +64,31 @@ export class Play extends Phaser.Scene {
         const view = shared.view!;
         view.container.style.setProperty('visibility', 'visible');
         this.puzzle = new Puzzle(this.level);
-        this.state = this.puzzle.initial();
+        this.state = this.keep?.state ?? this.puzzle.initial();
+        const turned = view.root.quaternion.clone();
         view.setLevel(this.level, this.puzzle, this.state);
         view.resetView();
+        if (this.keep) view.root.quaternion.copy(turned);
         // Centre the cube in the space between the top bar and the bottom panel.
         view.setOffsetY(0.055);
 
         // Top bar: back, title, restart; a "pieces left" pill and a progress bar under the title.
         iconButton(this, 90, 92, 96, chevronLeft, () => this.back());
         iconButton(this, width - 90, 92, 96, restartArrow, () => this.restart());
-        this.add.text(width / 2, 88, this.level.name, { fontFamily: FONT, fontSize: '60px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        iconButton(this, width - 80, 218, 76, gearIcon, () =>
+            openSettings(this, () =>
+                this.scene.restart({ level: this.level, index: this.index, keep: { state: this.state, hammers: this.hammers, rockets: this.rockets } })
+            )
+        );
+        this.add.text(width / 2, 88, this.level.name, { fontFamily: FONT, fontSize: '60px', color: T.ink, fontStyle: 'bold' }).setOrigin(0.5);
         const pill = this.add.graphics();
         softCard(pill, width / 2 - 215, 132, 430, 72, 36);
         pill.lineStyle(7, TEAL, 1).strokeCircle(width / 2 - 160, 167, 15);
-        this.piecesText = this.add.text(width / 2 + 20, 168, '', { fontFamily: FONT, fontSize: '34px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        this.piecesText = this.add.text(width / 2 + 20, 168, '', { fontFamily: FONT, fontSize: '34px', color: T.ink, fontStyle: 'bold' }).setOrigin(0.5);
         this.progress = this.add.graphics();
         this.progressBox = { x: width / 2 - 225, y: 232, w: 450, h: 20 };
         if (this.level.instruction) {
-            this.add.text(width / 2, 272, this.level.instruction, { fontFamily: FONT, fontSize: '26px', color: INK, align: 'center', wordWrap: { width: width - 120 } }).setOrigin(0.5, 0);
+            this.add.text(width / 2, 272, this.level.instruction, { fontFamily: FONT, fontSize: '26px', color: T.ink, align: 'center', wordWrap: { width: width - 120 } }).setOrigin(0.5, 0);
         }
 
         // Bottom panel: hammer, rotate pad, rocket.
@@ -85,7 +97,7 @@ export class Play extends Phaser.Scene {
         softCard(panel, 52, panelTop, width - 104, 290, 64);
         const row = panelTop + 128;
         this.pad = new RotatePad(this, width / 2, row);
-        this.add.text(width / 2, row + 128, 'Drag to rotate', { fontFamily: FONT, fontSize: '30px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        this.add.text(width / 2, row + 128, 'Drag to rotate', { fontFamily: FONT, fontSize: '30px', color: T.ink, fontStyle: 'bold' }).setOrigin(0.5);
         this.hammerBtn = new BoosterButton(this, width / 2 - 228, row - 12, 'hammer', () => this.toggleHammer());
         this.rocketBtn = new BoosterButton(this, width / 2 + 228, row - 12, 'rocket', () => this.fireRocket());
         this.hammerBtn.setCount(this.hammers);
@@ -95,7 +107,7 @@ export class Play extends Phaser.Scene {
             this.drag = { kind: 'orbit', x: p.x, y: p.y };
             this.pad.press(true);
         });
-        this.add.text(width / 2, height - 82, 'Drag a ring to twist', { fontFamily: FONT, fontSize: '30px', color: MUTED }).setOrigin(0.5);
+        this.add.text(width / 2, height - 82, 'Drag a ring to twist', { fontFamily: FONT, fontSize: '30px', color: T.muted }).setOrigin(0.5);
         this.toast = this.add.text(width / 2, panelTop - 40, '', { fontFamily: FONT, fontSize: '30px', color: '#9A520C', fontStyle: 'bold' }).setOrigin(0.5).setAlpha(0);
         this.updateHud();
 
@@ -129,8 +141,10 @@ export class Play extends Phaser.Scene {
             this.useHammer(hit.pieceId);
             return;
         }
+        // With "rotate from anywhere" off, only drags that start on the rotate pad turn the cube.
+        const orbit = settings.rotateAnywhere ? ({ kind: 'orbit', x: p.x, y: p.y } as const) : null;
         if (!hit.pieceId) {
-            this.drag = { kind: 'orbit', x: p.x, y: p.y };
+            this.drag = orbit ? { ...orbit } : null;
             return;
         }
         const id = hit.pieceId;
@@ -142,7 +156,7 @@ export class Play extends Phaser.Scene {
         else if (m.kind === 'flip') this.drag = { kind: 'tap', id, x: p.x, y: p.y };
         if (this.drag && 'id' in this.drag) view.setSelected(id);
         else {
-            this.drag = { kind: 'orbit', x: p.x, y: p.y };
+            this.drag = orbit ? { ...orbit } : null;
             if (m.kind === 'none') {
                 view.flash(id);
                 this.say(m.reason === 'holds another piece' ? 'Free the pieces it holds first' : 'This piece is stuck');
@@ -292,7 +306,7 @@ export class Play extends Phaser.Scene {
         const b = this.progressBox;
         const done = total ? (total - left) / total : 0;
         const g = this.progress.clear();
-        g.fillStyle(0xeadfce, 1).fillRoundedRect(b.x, b.y, b.w, b.h, b.h / 2);
+        g.fillStyle(T.track, 1).fillRoundedRect(b.x, b.y, b.w, b.h, b.h / 2);
         if (done > 0) g.fillStyle(TEAL, 1).fillRoundedRect(b.x, b.y, Math.max(b.h, b.w * done), b.h, b.h / 2);
     }
 
@@ -314,10 +328,10 @@ export class Play extends Phaser.Scene {
     private win() {
         const { width, height } = this.scale;
         const layer = this.add.container(0, 0);
-        const shade = this.add.rectangle(width / 2, height / 2, width, height, 0xf4eee4, 0.75).setInteractive();
+        const shade = this.add.rectangle(width / 2, height / 2, width, height, T.shade, 0.75).setInteractive();
         const panel = this.add.graphics();
-        panel.fillStyle(0xffffff, 1).fillRoundedRect(width / 2 - 280, height / 2 - 200, 560, 400, 28);
-        const title = this.add.text(width / 2, height / 2 - 110, 'Level cleared!', { fontFamily: FONT, fontSize: '56px', color: INK, fontStyle: 'bold' }).setOrigin(0.5);
+        softCard(panel, width / 2 - 280, height / 2 - 200, 560, 400, 40);
+        const title = this.add.text(width / 2, height / 2 - 110, 'Level cleared!', { fontFamily: FONT, fontSize: '56px', color: T.ink, fontStyle: 'bold' }).setOrigin(0.5);
         layer.add([shade, panel, title]);
         const next = shared.levels[this.index + 1];
         if (!shared.embedded && next && this.index >= 0) {
