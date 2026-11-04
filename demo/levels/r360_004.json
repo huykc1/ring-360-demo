@@ -6,7 +6,7 @@
   "version": 1,
   "status": "PROD",
   "difficulty": "normal",
-  "category": "",
+  "category": "DEMO",
   "cubeSize": 400,
   "bombRadius": 70,
   "pieces": [
