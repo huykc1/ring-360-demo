@@ -1,19 +1,20 @@
 :root {
-    --bg: #141210;
-    --panel: #1a1714;
-    --raise: #26221d;
-    --field: #1c1915;
-    --line: #3a342d;
-    --line-soft: #2a2520;
-    --ink: #ece7df;
-    --muted: #9b9184;
-    --accent: #e8892b;
-    --accent-ink: #1c1209;
-    --accent-soft: #3a2a17;
-    --accent-text: #f2a65a;
-    --ok: #7bc47f;
+    /* Dark theme: navy, with teal accents (matches the game's dark theme). */
+    --bg: #0f1526;
+    --panel: #141b2e;
+    --raise: #1e2740;
+    --field: #172036;
+    --line: #2b3654;
+    --line-soft: #1d2640;
+    --ink: #e6ecf5;
+    --muted: #8fa3c0;
+    --accent: #1f9d8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #143a40;
+    --accent-text: #5fd6c6;
+    --ok: #6fd3a0;
     --warn: #f2c14e;
-    --bad: #e8674a;
+    --bad: #f07a65;
     --logo: #e8892b;
     color-scheme: dark;
 }
