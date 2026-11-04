@@ -8,3 +8,8 @@ docs/.vitepress/dist
 dist-editor
 docs/.vitepress/cache
 .pages
+
+# Level editor working files (project mode); collections.json is kept
+editor-data/versions
+editor-data/drafts
+editor-data/collections/

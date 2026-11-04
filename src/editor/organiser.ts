@@ -1,13 +1,15 @@
 // Organiser tab: ordered collections of levels, saved as collections.json plus numbered copies.
 import type { Level } from '../core/types';
 import { clear, h } from './dom';
-import { copyName, type Collection, type Store } from './store';
+import { copyName, DEMO_COLLECTION, demoEntry, FolderStore, type Collection, type Store } from './store';
 
 export class Organiser {
     private cols: Collection[] = [];
     private sel = 0;
     private work: Collection | null = null;
     private copies: string[] = [];
+    /** Ids listed in public/levels/index.json (Demo collection only). */
+    private demoIds: string[] = [];
     private left!: HTMLElement;
     private center!: HTMLElement;
     private right!: HTMLElement;
@@ -28,7 +30,26 @@ export class Organiser {
         left.style.width = '240px';
         right.style.width = '280px';
         this.cols = await this.store().readCollections();
+        await this.ensureDemoCollection();
         await this.pick(Math.min(this.sel, Math.max(0, this.cols.length - 1)));
+    }
+
+    private get project(): FolderStore | null {
+        const st = this.store();
+        return st instanceof FolderStore && st.isProject ? st : null;
+    }
+
+    /** In the game project, the "Demo" collection is the demo's level list (public/levels/index.json). */
+    private async ensureDemoCollection() {
+        const project = this.project;
+        if (!project || this.cols.some((c) => c.name === DEMO_COLLECTION)) return;
+        const index = await project.readDemoIndex();
+        this.cols.unshift({ name: DEMO_COLLECTION, version: 1, levels: index.map((e) => e.id) });
+        await project.writeCollections(this.cols);
+    }
+
+    private isDemo(c: Collection | null | undefined) {
+        return !!this.project && c?.name === DEMO_COLLECTION;
     }
 
     private get dirty() {
@@ -42,6 +63,7 @@ export class Organiser {
         const c = this.cols[i];
         this.work = c ? structuredClone(c) : null;
         this.copies = c ? await this.store().listCollectionCopies(c.name) : [];
+        this.demoIds = this.isDemo(c) ? (await this.project!.readDemoIndex()).map((e) => e.id) : [];
         this.render();
     }
 
@@ -62,7 +84,15 @@ export class Organiser {
                     h(
                         'div',
                         { class: `coll${i === this.sel ? ' active' : ''}`, onClick: () => i !== this.sel && this.pick(i) },
-                        h('span', {}, h('span', { class: 'muted' }, `v${c.version} `), h('b', {}, c.name), h('br'), h('span', { class: 'muted' }, `${c.levels.length} levels`)),
+                        h(
+                            'span',
+                            {},
+                            h('span', { class: 'muted' }, `v${c.version} `),
+                            h('b', {}, c.name),
+                            h('br'),
+                            h('span', { class: 'muted' }, `${c.levels.length} levels`),
+                            this.isDemo(c) && h('span', { class: 'tag', style: { marginLeft: '6px' } }, 'plays in /demo/')
+                        ),
                         h('button', { class: 'ghost icon', title: 'Remove from the list (the folder on disk stays)', onClick: (e: Event) => (e.stopPropagation(), this.removeCollection(i)) }, '🗑')
                     )
                 ),
@@ -78,7 +108,8 @@ export class Organiser {
         const rows = w.levels.map((id, i) => {
             const lv = byId.get(id);
             const faces = lv ? new Set(lv.pieces.map((p) => p.face)).size : 0;
-            const copied = this.copies.includes(copyName(i, id)) && !this.dirty;
+            const demo = this.isDemo(this.cols[this.sel]);
+            const copied = !this.dirty && (demo ? this.demoIds[i] === id : this.copies.includes(copyName(i, id)));
             const row = h(
                 'div',
                 { class: 'org-row', draggable: 'true' },
@@ -92,7 +123,11 @@ export class Organiser {
                     lv
                         ? h('span', { class: 'muted' }, `${lv.pieces.length} pcs · ${faces} face${faces === 1 ? '' : 's'} `, h('span', { class: 'tag' }, lv.difficulty), ' ')
                         : h('span', { style: { color: 'var(--bad)' } }, 'missing level '),
-                    h('span', { class: `copy-state${copied ? '' : ' pending'}` }, copied ? 'copy in folder' : 'not copied yet: Save')
+                    h(
+                        'span',
+                        { class: `copy-state${copied ? '' : ' pending'}` },
+                        demo ? (copied ? 'in demo' : 'not in demo yet: Save') : copied ? 'copy in folder' : 'not copied yet: Save'
+                    )
                 ),
                 h('button', { class: 'icon', title: 'Move up', disabled: i === 0, onClick: () => this.move(i, i - 1) }, '↑'),
                 h('button', { class: 'icon', title: 'Move down', disabled: i === w.levels.length - 1, onClick: () => this.move(i, i + 1) }, '↓'),
@@ -119,7 +154,7 @@ export class Organiser {
     private renderRight() {
         const w = this.work;
         if (!w) return clear(this.right, h('div', { class: 'side-head' }, h('h3', {}, 'Settings')));
-        const name = h('input', { value: w.name });
+        const name = h('input', { value: w.name, disabled: this.isDemo(this.cols[this.sel]) });
         name.addEventListener('input', () => {
             w.name = name.value.replace(/[\\/:*?"<>|]/g, '').trim() || w.name;
             this.renderCenter();
@@ -139,7 +174,9 @@ export class Organiser {
                 h('button', { style: { width: '100%' }, onClick: () => this.addDialog() }, '+ Add level'),
                 h('div', { style: { height: '8px' } }),
                 h('button', { class: 'primary', style: { width: '100%' }, onClick: () => this.save() }, 'Save collection'),
-                h('p', { class: 'muted' }, `Save writes collections.json and numbered copies in collections/${w.name}/. Changes are only written when you press Save.`)
+                this.isDemo(this.cols[this.sel])
+                    ? h('p', { class: 'muted' }, 'This is the demo\'s level list. Save writes public/levels/index.json: these levels, in this order, are what /demo/ plays after the next release.')
+                    : h('p', { class: 'muted' }, `Save writes collections.json and numbered copies in collections/${w.name}/. Changes are only written when you press Save.`)
             )
         );
     }
@@ -163,6 +200,7 @@ export class Organiser {
     }
 
     private async removeCollection(i: number) {
+        if (this.isDemo(this.cols[i])) return this.say('The Demo collection is the demo\'s level list and cannot be removed');
         if (!confirm(`Remove “${this.cols[i].name}” from the list? Its folder on disk is kept.`)) return;
         this.cols.splice(i, 1);
         await this.store().writeCollections(this.cols);
@@ -181,7 +219,9 @@ export class Organiser {
         const renumbered = levels.filter((l, i) => !before.has(copyName(i, l.id)) && [...before].some((n) => n.endsWith(`_${l.id}.json`))).length;
         this.cols[this.sel] = structuredClone(w);
         await this.store().writeCollections(this.cols);
+        if (this.isDemo(w)) await this.project!.writeDemoIndex(levels.map(demoEntry));
         this.copies = await this.store().listCollectionCopies(w.name);
+        if (this.isDemo(w)) this.demoIds = levels.map((l) => l.id);
         this.say(`Saved ${w.name}: ${res.copied} copied, ${renumbered} renumbered, ${res.removed} removed`);
         this.render();
     }

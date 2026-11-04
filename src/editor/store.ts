@@ -88,18 +88,62 @@ async function remove(dir: Dir | null, name: string, recursive = false) {
     }
 }
 
+/** Where a folder store keeps things, relative to the folder the designer picked. */
+interface Layout {
+    levels: string[];
+    versions: string[];
+    drafts: string[];
+    /** Folder holding collections.json and collections/. */
+    data: string[];
+}
+
+const PLAIN: Layout = { levels: ['levels'], versions: ['levels', '.versions'], drafts: ['drafts'], data: [] };
+/**
+ * The game project itself: levels are the demo's own files in public/levels/; the editor's history,
+ * drafts and collections live in editor-data/ so they are not bundled into the game.
+ */
+const PROJECT: Layout = { levels: ['public', 'levels'], versions: ['editor-data', 'versions'], drafts: ['editor-data', 'drafts'], data: ['editor-data'] };
+
+/** The demo's level list (public/levels/index.json), in play order. */
+export interface DemoEntry {
+    id: string;
+    name: string;
+    difficulty: string;
+    file: string;
+}
+
+export const DEMO_COLLECTION = 'Demo';
+
 export class FolderStore implements Store {
     kind = 'folder' as const;
-    constructor(readonly root: Dir) {}
+    private layout: Layout;
+
+    constructor(
+        readonly root: Dir,
+        readonly isProject = false
+    ) {
+        this.layout = isProject ? PROJECT : PLAIN;
+    }
+
+    /** A folder with public/levels/ is the game project: the editor then works on the demo's levels. */
+    static async open(root: Dir) {
+        const project = !!(await dirAt(root, ['public', 'levels'], false));
+        return new FolderStore(root, project);
+    }
+
     get label() {
-        return this.root.name;
+        return this.isProject ? `${this.root.name} (project)` : this.root.name;
+    }
+
+    private dir(path: string[], create = true) {
+        return dirAt(this.root, path, create);
     }
 
     async listLevels() {
-        const dir = await dirAt(this.root, ['levels'], true);
+        const dir = await this.dir(this.layout.levels);
         const out: Level[] = [];
         for (const n of await names(dir)) {
-            if (!n.endsWith('.json')) continue;
+            if (!n.endsWith('.json') || n === 'index.json') continue;
             const t = await readText(dir, n);
             try {
                 if (t) out.push(normalizeLevel({ ...JSON.parse(t), id: n.replace(/\.json$/, '') }));
@@ -111,41 +155,47 @@ export class FolderStore implements Store {
     }
 
     async readLevel(id: string) {
-        const t = await readText(await dirAt(this.root, ['levels'], true), `${id}.json`);
+        const t = await readText(await this.dir(this.layout.levels), `${id}.json`);
         return t ? normalizeLevel(JSON.parse(t)) : null;
     }
 
     async writeLevel(level: Level, keepVersion: boolean) {
-        const dir = (await dirAt(this.root, ['levels'], true))!;
+        const dir = (await this.dir(this.layout.levels))!;
         if (keepVersion) {
-            const vdir = (await dirAt(this.root, ['levels', '.versions', level.id], true))!;
+            const vdir = (await this.dir([...this.layout.versions, level.id]))!;
             await writeText(vdir, `v${level.version}.json`, json(level));
             const files = (await names(vdir)).sort((a, b) => parseInt(b.slice(1)) - parseInt(a.slice(1)));
             for (const old of files.slice(KEEP_VERSIONS)) await remove(vdir, old);
         }
         await writeText(dir, `${level.id}.json`, json(level));
+        await this.syncDemoEntry(level.id, level);
     }
 
     async deleteLevel(id: string) {
-        await remove(await dirAt(this.root, ['levels'], true), `${id}.json`);
+        await remove(await this.dir(this.layout.levels), `${id}.json`);
+        await this.syncDemoEntry(id, null);
     }
 
     async renameLevel(oldId: string, level: Level) {
+        const index = this.isProject ? await this.readDemoIndex() : null;
         await this.writeLevel(level, false);
-        await this.deleteLevel(oldId);
-        const vOld = await dirAt(this.root, ['levels', '.versions', oldId], false);
+        await remove(await this.dir(this.layout.levels), `${oldId}.json`);
+        if (index) {
+            await this.writeDemoIndex(index.map((e) => (e.id === oldId ? demoEntry(level) : e)));
+        }
+        const vOld = await this.dir([...this.layout.versions, oldId], false);
         if (vOld) {
-            const vNew = (await dirAt(this.root, ['levels', '.versions', level.id], true))!;
+            const vNew = (await this.dir([...this.layout.versions, level.id]))!;
             for (const n of await names(vOld)) {
                 const t = await readText(vOld, n);
                 if (t) await writeText(vNew, n, json({ ...JSON.parse(t), id: level.id }));
             }
-            await remove(await dirAt(this.root, ['levels', '.versions'], false), oldId, true);
+            await remove(await this.dir(this.layout.versions, false), oldId, true);
         }
     }
 
     async listVersions(id: string) {
-        const vdir = await dirAt(this.root, ['levels', '.versions', id], false);
+        const vdir = await this.dir([...this.layout.versions, id], false);
         const out: Level[] = [];
         for (const n of await names(vdir)) {
             const t = await readText(vdir, n);
@@ -155,28 +205,28 @@ export class FolderStore implements Store {
     }
 
     async readDraft() {
-        const t = await readText(await dirAt(this.root, ['drafts'], false), 'current.json');
+        const t = await readText(await this.dir(this.layout.drafts, false), 'current.json');
         return t ? normalizeLevel(JSON.parse(t)) : null;
     }
 
     async writeDraft(level: Level | null) {
-        const dir = (await dirAt(this.root, ['drafts'], true))!;
+        const dir = (await this.dir(this.layout.drafts))!;
         if (level) await writeText(dir, 'current.json', json(level));
         else await remove(dir, 'current.json');
     }
 
     async readCollections() {
-        const t = await readText(this.root, 'collections.json');
+        const t = await readText(await this.dir(this.layout.data, false), 'collections.json');
         return t ? ((JSON.parse(t) as { collections: Collection[] }).collections ?? []) : [];
     }
 
     async writeCollections(cols: Collection[]) {
-        await writeText(this.root, 'collections.json', json({ collections: cols }));
+        await writeText((await this.dir(this.layout.data))!, 'collections.json', json({ collections: cols }));
     }
 
     async writeCollectionCopies(name: string, levels: Level[], oldName?: string) {
-        if (oldName && oldName !== name) await remove(await dirAt(this.root, ['collections'], false), oldName, true);
-        const dir = (await dirAt(this.root, ['collections', name], true))!;
+        if (oldName && oldName !== name) await remove(await this.dir([...this.layout.data, 'collections'], false), oldName, true);
+        const dir = (await this.dir([...this.layout.data, 'collections', name]))!;
         const want = levels.map((l, i) => copyName(i, l.id));
         let removed = 0;
         for (const n of await names(dir)) {
@@ -190,8 +240,34 @@ export class FolderStore implements Store {
     }
 
     async listCollectionCopies(name: string) {
-        return names(await dirAt(this.root, ['collections', name], false));
+        return names(await this.dir([...this.layout.data, 'collections', name], false));
     }
+
+    // ---------- the demo's level list (project folders only) ----------
+
+    async readDemoIndex(): Promise<DemoEntry[]> {
+        const t = await readText(await this.dir(this.layout.levels), 'index.json');
+        return t ? ((JSON.parse(t) as { levels: DemoEntry[] }).levels ?? []) : [];
+    }
+
+    async writeDemoIndex(entries: DemoEntry[]) {
+        await writeText((await this.dir(this.layout.levels))!, 'index.json', json({ levels: entries }));
+    }
+
+    /** Keeps a demo level's name and difficulty in index.json in step with its file; drops deleted ones. */
+    private async syncDemoEntry(id: string, level: Level | null) {
+        if (!this.isProject) return;
+        const index = await this.readDemoIndex();
+        const i = index.findIndex((e) => e.id === id);
+        if (i < 0) return;
+        if (level) index[i] = demoEntry(level);
+        else index.splice(i, 1);
+        await this.writeDemoIndex(index);
+    }
+}
+
+export function demoEntry(level: Level): DemoEntry {
+    return { id: level.id, name: level.name, difficulty: level.difficulty, file: `${level.id}.json` };
 }
 
 // ---------------- browser storage ----------------

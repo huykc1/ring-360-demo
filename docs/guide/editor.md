@@ -143,6 +143,16 @@ Athena logo (orange on dark, black on light), Fish Ball editor colour tone, dark
 
 Open `<pagesUrl>/editor/` (or `http://localhost:8080/editor/` with `npm run dev`). The first screen asks for a levels folder (Chrome or Edge) or browser storage.
 
+### Editing the demo's levels (project mode)
+
+The levels the demo plays are the files in `public/levels/` of this project, listed in play order in `public/levels/index.json`. To edit them, run `npm run dev`, open `http://localhost:8080/editor/` in Chrome or Edge, and choose the **ring-360-demo project folder**. The editor recognises the project and:
+
+- reads and writes levels directly in `public/levels/` (so saving a level changes the demo's file);
+- keeps its version history, drafts and collection copies in `editor-data/` (not bundled into the game, and ignored by git except `editor-data/collections.json`);
+- shows a **Demo** collection in the Organiser that mirrors `index.json`. Add, remove or reorder levels there and press Save collection to rewrite `index.json`. Saving, renaming or deleting a level that is in the demo updates its `index.json` entry too.
+
+The live site only changes after the files are committed, pushed and released (`npm run release:latest`). The editor on the live site cannot write to the repository; in browser storage or another folder, **Import demo levels** copies the demo's current levels in for viewing and editing.
+
 - **Levels panel**: `+` new, `⧉` duplicate, `⇩` import JSON files (Ring 360 levels or a 2D layout bank), `▤` import a folder, `🗑` delete, `🕘` older versions of the open level.
 - **Generator**: pick a preset, adjust values, press Generate. The result replaces the open level's pieces as an unsaved, undoable change.
 - **Tools** (left strip): select, C ring, closed ring, bar, L, U, screw, hook (click the holding ring, then the held piece), bomb on a piece, fixed bomb.

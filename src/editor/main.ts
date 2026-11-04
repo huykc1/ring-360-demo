@@ -91,7 +91,7 @@ function run<T>(msg: Record<string, unknown>): Promise<T> {
 
 async function boot() {
     const remembered = folderSupported() ? await recallFolder() : null;
-    if (remembered && (await hasPermission(remembered, false).catch(() => false))) return connect(new FolderStore(remembered));
+    if (remembered && (await hasPermission(remembered, false).catch(() => false))) return connect(await FolderStore.open(remembered));
     if (ui.get<string>('store', '') === 'browser') return connect(new BrowserStore());
     renderConnect(remembered);
 }
@@ -105,17 +105,18 @@ function renderConnect(remembered: FileSystemDirectoryHandle | null) {
             h('div', { style: { fontSize: '22px' } }, logo()),
             h('h2', {}, 'Ring 360 Editor'),
             h('p', { class: 'muted' }, 'Pick where the levels live. A folder works in Chrome and Edge; browser storage stays in this browser only.'),
+            h('p', { class: 'muted' }, 'To edit the levels the demo plays, choose the ring-360-demo project folder: the editor then works on public/levels/ directly.'),
             h(
                 'div',
                 { class: 'row' },
                 remembered &&
-                    h('button', { class: 'primary', onClick: async () => (await hasPermission(remembered, true)) && connect(new FolderStore(remembered)) }, `Reconnect “${remembered.name}”`),
+                    h('button', { class: 'primary', onClick: async () => (await hasPermission(remembered, true)) && connect(await FolderStore.open(remembered)) }, `Reconnect “${remembered.name}”`),
                 folderSupported() &&
                     h('button', { class: remembered ? '' : 'primary', onClick: async () => {
                         const d = await pickFolder().catch(() => null);
                         if (!d) return;
                         await rememberFolder(d);
-                        connect(new FolderStore(d));
+                        connect(await FolderStore.open(d));
                     } }, 'Choose levels folder'),
                 h('button', { onClick: () => connect(new BrowserStore()) }, 'Use browser storage')
             ),
@@ -331,6 +332,27 @@ async function importFiles() {
         else renderFooter();
     };
     input.click();
+}
+
+/** Fetches the levels bundled with the game (the demo's list) and adds copies here. */
+async function importDemoLevels() {
+    const base = import.meta.env.DEV ? '../levels/' : '../demo/levels/';
+    try {
+        const index = (await (await fetch(`${base}index.json`, { cache: 'no-cache' })).json()) as { levels: { id: string; file: string }[] };
+        const levels: Level[] = [];
+        for (const e of index.levels) levels.push(normalizeLevel(await (await fetch(`${base}${e.file}`, { cache: 'no-cache' })).json()));
+        const fresh = levels.filter((l) => !app.levels.some((x) => x.id === l.id));
+        if (!fresh.length) {
+            app.footer = 'The demo levels are already here';
+            return renderFooter();
+        }
+        await addLevels(fresh);
+        app.footer = `Imported ${fresh.length} demo level(s)`;
+        renderFooter();
+    } catch {
+        app.footer = 'Could not load the demo levels';
+        renderFooter();
+    }
 }
 
 async function importFolder() {
@@ -700,6 +722,8 @@ function renderLevels() {
             h('button', { class: 'icon', title: 'Duplicate level', disabled: !app.cur, onClick: duplicateLevel }, '⧉'),
             h('button', { class: 'icon', title: 'Import JSON files (levels or a 2D layout bank)', onClick: importFiles }, '⇩'),
             h('button', { class: 'icon', title: 'Import a folder of levels', onClick: importFolder }, '▤'),
+            !(app.store instanceof FolderStore && app.store.isProject) &&
+                h('button', { title: 'Copy the levels the demo plays into this storage', onClick: importDemoLevels }, 'Import demo levels'),
             h('button', { class: 'icon', title: 'Delete level', disabled: !app.cur, onClick: deleteLevel }, '🗑')
         ),
         search,
